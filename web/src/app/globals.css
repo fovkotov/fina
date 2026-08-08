@@ -28,6 +28,9 @@
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 :root {
@@ -50,6 +53,9 @@
   --input: oklch(0.9 0.02 140);
   --ring: oklch(0.5 0.06 165);
   --radius: 0.75rem;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @layer base {
@@ -58,5 +64,205 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* —— Press / tap feedback (Emil: 100–160ms, scale 0.97, ease-out) —— */
+.pressable {
+  transition:
+    transform 160ms var(--ease-out),
+    background-color 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease,
+    opacity 160ms ease,
+    filter 160ms ease;
+  will-change: transform;
+}
+
+.pressable:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pressable-hover:hover:not(:disabled) {
+    transform: scale(1.015);
+  }
+  .pressable-hover:hover:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+}
+
+/* —— State surfaces (cards / panels) —— */
+.surface-enter {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  transition:
+    opacity 220ms var(--ease-out),
+    transform 220ms var(--ease-out),
+    filter 220ms ease;
+}
+
+@starting-style {
+  .surface-enter {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+}
+
+.surface-enter[data-mounted="false"] {
+  opacity: 0;
+  transform: scale(0.96) translateY(8px);
+}
+
+/* —— Tab content crossfade —— */
+.tab-pane {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+  transition:
+    opacity 180ms var(--ease-out),
+    transform 180ms var(--ease-out),
+    filter 180ms ease;
+}
+
+.tab-pane[data-state="inactive"] {
+  display: none;
+}
+
+.tab-pane[data-state="active"] {
+  animation: tab-in 180ms var(--ease-out) both;
+}
+
+@keyframes tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+/* —— Segmented / toggle selection —— */
+.segment {
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms var(--ease-out),
+    box-shadow 160ms ease;
+}
+
+.segment:active {
+  transform: scale(0.97);
+}
+
+/* —— List stagger —— */
+.stagger-item {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: stagger-in 220ms var(--ease-out) forwards;
+}
+
+.stagger-item:nth-child(1) { animation-delay: 0ms; }
+.stagger-item:nth-child(2) { animation-delay: 40ms; }
+.stagger-item:nth-child(3) { animation-delay: 80ms; }
+.stagger-item:nth-child(4) { animation-delay: 120ms; }
+.stagger-item:nth-child(5) { animation-delay: 160ms; }
+.stagger-item:nth-child(6) { animation-delay: 200ms; }
+.stagger-item:nth-child(7) { animation-delay: 240ms; }
+.stagger-item:nth-child(n + 8) { animation-delay: 280ms; }
+
+@keyframes stagger-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* —— Error shake (feedback) —— */
+.shake {
+  animation: shake 280ms var(--ease-out);
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+/* —— Loading content blur crossfade —— */
+.content-busy {
+  filter: blur(2px);
+  opacity: 0.72;
+  transition:
+    filter 200ms ease,
+    opacity 200ms ease;
+  pointer-events: none;
+}
+
+.content-ready {
+  filter: blur(0);
+  opacity: 1;
+  transition:
+    filter 200ms ease,
+    opacity 200ms ease;
+}
+
+/* —— Selects / inputs —— */
+.field {
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.field:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 35%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pressable,
+  .pressable-hover,
+  .surface-enter,
+  .tab-pane,
+  .segment,
+  .stagger-item,
+  .shake,
+  .content-busy,
+  .content-ready {
+    animation: none !important;
+    transition:
+      opacity 160ms ease,
+      background-color 160ms ease,
+      color 160ms ease !important;
+    transform: none !important;
+    filter: none !important;
+  }
+
+  .stagger-item {
+    opacity: 1;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .pressable-hover:hover:not(:disabled) {
+      transform: none;
+    }
   }
 }

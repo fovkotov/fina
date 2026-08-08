@@ -184,11 +184,11 @@
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
 					9E9667390089A826FAC1CBBD = {
-						DevelopmentTeam = 9UNXMK8UZ7;
+						DevelopmentTeam = KTU66V4H4X;
 						ProvisioningStyle = Automatic;
 					};
 					F5AEC8089EE0E010BEE7ADD2 = {
-						DevelopmentTeam = 9UNXMK8UZ7;
+						DevelopmentTeam = KTU66V4H4X;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -274,7 +274,7 @@
 				CODE_SIGN_ENTITLEMENTS = Fina/Fina.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 9UNXMK8UZ7;
+				DEVELOPMENT_TEAM = KTU66V4H4X;
 				INFOPLIST_FILE = Fina/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Fina;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = NO;
@@ -324,7 +324,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = 9UNXMK8UZ7;
+				DEVELOPMENT_TEAM = KTU66V4H4X;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -355,7 +355,7 @@
 				CODE_SIGN_ENTITLEMENTS = Fina/Fina.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 9UNXMK8UZ7;
+				DEVELOPMENT_TEAM = KTU66V4H4X;
 				INFOPLIST_FILE = Fina/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Fina;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = NO;
@@ -405,7 +405,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = 9UNXMK8UZ7;
+				DEVELOPMENT_TEAM = KTU66V4H4X;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -441,7 +441,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = FinaControls/FinaControls.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 9UNXMK8UZ7;
+				DEVELOPMENT_TEAM = KTU66V4H4X;
 				INFOPLIST_FILE = FinaControls/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Fina Controls";
 				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
@@ -462,7 +462,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = FinaControls/FinaControls.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 9UNXMK8UZ7;
+				DEVELOPMENT_TEAM = KTU66V4H4X;
 				INFOPLIST_FILE = FinaControls/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Fina Controls";
 				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";

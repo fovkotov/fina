@@ -56,6 +56,8 @@ export function FinaApp() {
   const [txMemberId, setTxMemberId] = useState("");
   const [shareText, setShareText] = useState("");
   const [tab, setTab] = useState("home");
+  const [shakeError, setShakeError] = useState(0);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     bind();
@@ -65,7 +67,14 @@ export function FinaApp() {
       setMember(m);
       setLoggedIn(true);
     }
+    requestAnimationFrame(() => setMounted(true));
   }, []);
+
+  function flashError(message: string) {
+    setError(message);
+    setShakeError((n) => n + 1);
+    play("error");
+  }
 
   async function refresh() {
     setLoading(true);
@@ -83,8 +92,7 @@ export function FinaApp() {
       );
       if (!txMemberId && s.members[0]) setTxMemberId(s.members[0].id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Ошибка загрузки");
-      play("error");
+      flashError(e instanceof Error ? e.message : "Ошибка загрузки");
       if (String(e).toLowerCase().includes("unauthorized")) {
         logout();
         setLoggedIn(false);
@@ -110,8 +118,7 @@ export function FinaApp() {
       setLoggedIn(true);
       play("success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Не удалось войти");
-      play("error");
+      flashError(err instanceof Error ? err.message : "Не удалось войти");
     } finally {
       setLoading(false);
     }
@@ -122,8 +129,7 @@ export function FinaApp() {
     play("pulse");
     const value = Number(amount.replace(",", ".").replace(/\s/g, ""));
     if (!value || value <= 0) {
-      setError("Введи сумму");
-      play("error");
+      flashError("Введи сумму");
       return;
     }
     setLoading(true);
@@ -142,8 +148,7 @@ export function FinaApp() {
       await refresh();
       setTab("ops");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Не удалось сохранить");
-      play("error");
+      flashError(err instanceof Error ? err.message : "Не удалось сохранить");
     } finally {
       setLoading(false);
     }
@@ -158,10 +163,13 @@ export function FinaApp() {
   if (!loggedIn) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_10%_10%,oklch(0.93_0.04_160),transparent_40%),radial-gradient(circle_at_90%_0%,oklch(0.95_0.04_70),transparent_35%),oklch(0.97_0.01_120)] p-4">
-        <Card className="w-full max-w-md border-border/60 bg-background/80 backdrop-blur">
+        <Card
+          data-mounted={mounted ? "true" : "false"}
+          className={`w-full max-w-md border-border/60 bg-background/80 backdrop-blur ${error ? "shake" : ""}`}
+        >
           <CardHeader>
             <CardTitle className="font-heading text-4xl tracking-tight">
-              <TextMorph as="span" locale="ru">
+              <TextMorph as="span" locale="ru" duration={280}>
                 ФИНА
               </TextMorph>
             </CardTitle>
@@ -177,6 +185,7 @@ export function FinaApp() {
                       key={name}
                       type="button"
                       variant={selectedName === name ? "default" : "outline"}
+                      className="segment"
                       data-cuelume-press="sparkle"
                       data-cuelume-release="tick"
                       onClick={() => {
@@ -207,7 +216,11 @@ export function FinaApp() {
                   onChange={(e) => setPin(e.target.value)}
                 />
               </div>
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {error && (
+                <p className="text-sm text-destructive" key={`err-${shakeError}`}>
+                  {error}
+                </p>
+              )}
               <Button
                 type="submit"
                 disabled={loading}
@@ -215,7 +228,9 @@ export function FinaApp() {
                 data-cuelume-release="release"
                 className="w-full"
               >
-                {loading ? "Входим…" : "Войти"}
+                <span className={loading ? "content-busy" : "content-ready"}>
+                  {loading ? "Входим…" : "Войти"}
+                </span>
               </Button>
             </form>
           </CardContent>
@@ -250,7 +265,10 @@ export function FinaApp() {
         </header>
 
         {error && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <div
+            key={`banner-${shakeError}`}
+            className="shake rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
             {error}
           </div>
         )}
@@ -262,7 +280,7 @@ export function FinaApp() {
             setTab(v);
           }}
         >
-          <TabsList data-cuelume-press="scan">
+          <TabsList>
             <TabsTrigger value="home" data-cuelume-press="sparkle">
               Главная
             </TabsTrigger>
@@ -278,26 +296,29 @@ export function FinaApp() {
           </TabsList>
 
           <TabsContent value="home" className="grid gap-4 md:grid-cols-[1.3fr_1fr]">
-            <Card>
+            <Card className={loading ? "content-busy" : "content-ready"}>
               <CardHeader>
                 <CardDescription>Всего на счёте</CardDescription>
-                <CardTitle className="font-heading text-4xl md:text-5xl">
-                  <TextMorph as="span" locale="ru" duration={500}>
+                <CardTitle className="font-heading text-4xl md:text-5xl tabular-nums">
+                  <TextMorph as="span" locale="ru" duration={280}>
                     {totalLabel}
                   </TextMorph>
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid gap-4">
                 <div className="grid grid-cols-2 gap-3">
-                  {(summary?.members ?? []).map((m) => (
+                  {(summary?.members ?? []).map((m, i) => (
                     <div
                       key={m.id}
-                      className="rounded-xl border p-4"
-                      style={{ borderColor: m.accent }}
+                      className="stagger-item rounded-xl border p-4"
+                      style={{
+                        borderColor: m.accent,
+                        animationDelay: `${i * 40}ms`,
+                      }}
                     >
                       <p className="text-sm text-muted-foreground">{m.name}</p>
-                      <p className="text-xl font-semibold">
-                        <TextMorph as="span" locale="ru">
+                      <p className="text-xl font-semibold tabular-nums">
+                        <TextMorph as="span" locale="ru" duration={240}>
                           {formatMoney(m.balanceCents ?? 0)}
                         </TextMorph>
                       </p>
@@ -305,21 +326,21 @@ export function FinaApp() {
                   ))}
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-sm">
-                  <div className="rounded-lg bg-muted/60 p-3">
+                  <div className="stagger-item rounded-lg bg-muted/60 p-3">
                     <p className="text-muted-foreground">Проценты</p>
-                    <TextMorph as="p" locale="ru" className="font-medium">
+                    <TextMorph as="p" locale="ru" duration={240} className="font-medium tabular-nums">
                       {formatMoney(summary?.interestCents ?? 0)}
                     </TextMorph>
                   </div>
-                  <div className="rounded-lg bg-muted/60 p-3">
+                  <div className="stagger-item rounded-lg bg-muted/60 p-3">
                     <p className="text-muted-foreground">Кэшбэк</p>
-                    <TextMorph as="p" locale="ru" className="font-medium">
+                    <TextMorph as="p" locale="ru" duration={240} className="font-medium tabular-nums">
                       {formatMoney(summary?.cashbackCents ?? 0)}
                     </TextMorph>
                   </div>
-                  <div className="rounded-lg bg-muted/60 p-3">
+                  <div className="stagger-item rounded-lg bg-muted/60 p-3">
                     <p className="text-muted-foreground">Изи мани</p>
-                    <TextMorph as="p" locale="ru" className="font-medium">
+                    <TextMorph as="p" locale="ru" duration={240} className="font-medium tabular-nums">
                       {formatMoney(summary?.easyMoneyCents ?? 0)}
                     </TextMorph>
                   </div>
@@ -337,7 +358,7 @@ export function FinaApp() {
                   <div className="grid gap-2">
                     <Label>Тип</Label>
                     <select
-                      className="border-input bg-background h-10 rounded-md border px-3 text-sm"
+                      className="field border-input bg-background h-10 rounded-md border px-3 text-sm"
                       value={txType}
                       onChange={(e) => {
                         play("toggle");
@@ -359,13 +380,14 @@ export function FinaApp() {
                       onChange={(e) => setAmount(e.target.value)}
                       placeholder="1000"
                       inputMode="decimal"
+                      className="tabular-nums"
                     />
                   </div>
                   {needsMember && (
                     <div className="grid gap-2">
                       <Label>Кто</Label>
                       <select
-                        className="border-input bg-background h-10 rounded-md border px-3 text-sm"
+                        className="field border-input bg-background h-10 rounded-md border px-3 text-sm"
                         value={txMemberId}
                         onChange={(e) => {
                           play("tick");
@@ -390,7 +412,9 @@ export function FinaApp() {
                     data-cuelume-press="pulse"
                     data-cuelume-release="sparkle"
                   >
-                    Сохранить
+                    <span className={loading ? "content-busy" : "content-ready"}>
+                      Сохранить
+                    </span>
                   </Button>
                 </form>
               </CardContent>
@@ -398,7 +422,7 @@ export function FinaApp() {
           </TabsContent>
 
           <TabsContent value="ops">
-            <Card>
+            <Card className={loading ? "content-busy" : "content-ready"}>
               <CardHeader className="flex-row items-center justify-between">
                 <CardTitle>Все операции</CardTitle>
                 <Button
@@ -417,7 +441,7 @@ export function FinaApp() {
                 {transactions.map((tx) => (
                   <div
                     key={tx.id}
-                    className="flex items-start justify-between gap-3 border-b border-border/60 pb-3 last:border-0"
+                    className="stagger-item flex items-start justify-between gap-3 border-b border-border/60 pb-3 last:border-0"
                   >
                     <div>
                       <p className="font-medium">
@@ -430,7 +454,7 @@ export function FinaApp() {
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <Badge variant={tx.type === "withdrawal" ? "destructive" : "secondary"}>
-                        <TextMorph as="span" locale="ru">
+                        <TextMorph as="span" locale="ru" duration={200}>
                           {`${tx.type === "withdrawal" ? "−" : "+"}${formatMoney(tx.amountCents)}`}
                         </TextMorph>
                       </Badge>
@@ -455,32 +479,32 @@ export function FinaApp() {
 
           <TabsContent value="stats" className="grid gap-4 sm:grid-cols-2">
             {(summary?.members ?? []).map((m) => (
-              <Card key={m.id}>
+              <Card key={m.id} className="stagger-item">
                 <CardHeader>
                   <CardDescription>{m.name}</CardDescription>
-                  <CardTitle>
-                    <TextMorph as="span" locale="ru">
+                  <CardTitle className="tabular-nums">
+                    <TextMorph as="span" locale="ru" duration={240}>
                       {formatMoney(m.balanceCents ?? 0)}
                     </TextMorph>
                   </CardTitle>
                 </CardHeader>
               </Card>
             ))}
-            <Card>
+            <Card className="stagger-item">
               <CardHeader>
                 <CardDescription>Вклады вместе</CardDescription>
-                <CardTitle>
-                  <TextMorph as="span" locale="ru">
+                <CardTitle className="tabular-nums">
+                  <TextMorph as="span" locale="ru" duration={240}>
                     {formatMoney(summary?.contributionsCents ?? 0)}
                   </TextMorph>
                 </CardTitle>
               </CardHeader>
             </Card>
-            <Card>
+            <Card className="stagger-item">
               <CardHeader>
                 <CardDescription>Проценты + кэшбэк</CardDescription>
-                <CardTitle>
-                  <TextMorph as="span" locale="ru">
+                <CardTitle className="tabular-nums">
+                  <TextMorph as="span" locale="ru" duration={240}>
                     {formatMoney(summary?.accrualsCents ?? 0)}
                   </TextMorph>
                 </CardTitle>
