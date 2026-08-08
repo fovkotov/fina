@@ -1,0 +1,514 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1EDB641B53EB119632652C75 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB36262B1B3BBD22BF6B4322 /* MainTabView.swift */; };
+		207A15E1927D817688D3CF6A /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D47672A9A48CC2151932C78 /* HomeView.swift */; };
+		246187D38C3F09B49A4E3361 /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AF5E9FAB35F52DD14AFA978 /* StatsView.swift */; };
+		291AC7997BA1E3B6DEBE37E4 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AE3CADF0F4EB6C609D5C4D /* Models.swift */; };
+		2D227E2800ACC482AC7FD751 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35B0E5C7D5C022E6D83182EA /* RootView.swift */; };
+		3A4194C599B0322FF223DD40 /* AppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC93E50B991B1FE32C70CE5B /* AppIntents.swift */; };
+		3E12F7905CEC3F0DF1C65308 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00B6C19B452A6A89D34DB9AD /* LoginView.swift */; };
+		505DDFA70205690D88B41B17 /* FinaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAC47F0AEEB8F9CC207F7899 /* FinaApp.swift */; };
+		5C8A002EF21249A67C5C8AFF /* TransactionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EF3E47E30EB73B9ED046CF2 /* TransactionsView.swift */; };
+		616D1CF9F51190043AE840BA /* FinaControls.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BFFEE18425D19B6B3AEB5F6C /* FinaControls.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		619C0080F9F5D16878FEAA82 /* FinaControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = F545E03235567058C888E1F3 /* FinaControls.swift */; };
+		7CBF55842A35498B087E5676 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8033271DA0B13E1B6A11184C /* Theme.swift */; };
+		8EC56C28621B843D9EAF1D8F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B93EF4E34F1A29477A21E69B /* Assets.xcassets */; };
+		93B204F43DF37428E319F52D /* AddTransactionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E61784C880B5243AB35031E6 /* AddTransactionView.swift */; };
+		957F1EBB01BD02AAA0F26B8D /* QuickAddSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C441DA62A545522C651632FD /* QuickAddSheet.swift */; };
+		C23010ACB856189834C67B63 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34ABB9FF13B628B437E6E03B /* APIClient.swift */; };
+		C908D3F5521D258F497795C2 /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E5F88613772F32C5DE74C74 /* AppStore.swift */; };
+		DE01114A2607F16B16BCC22E /* QuickActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0BEAAB1538CFBB32E14482 /* QuickActions.swift */; };
+		EFED85A28FA6CD6DF78DB9CC /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 564561F74DFE0A523E7AFB00 /* SettingsView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		6D272B3EF80550B51EB9B7DB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AE15E657BEF67D58CCD2A6CC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9E9667390089A826FAC1CBBD;
+			remoteInfo = FinaControls;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FDCB87167D804233E2209953 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				616D1CF9F51190043AE840BA /* FinaControls.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		00B6C19B452A6A89D34DB9AD /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		00BC9EBE540A5BFF2322510D /* Fina.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Fina.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		01AE3CADF0F4EB6C609D5C4D /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		0EF3E47E30EB73B9ED046CF2 /* TransactionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionsView.swift; sourceTree = "<group>"; };
+		226A7EA0A598A6F9B28549F5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		34ABB9FF13B628B437E6E03B /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		35B0E5C7D5C022E6D83182EA /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		3705352D269801A58F67E021 /* FinaControls.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FinaControls.entitlements; sourceTree = "<group>"; };
+		564561F74DFE0A523E7AFB00 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		6AF5E9FAB35F52DD14AFA978 /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
+		77B843653C4652FBD0C654A5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		7D47672A9A48CC2151932C78 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		8033271DA0B13E1B6A11184C /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		8621818114A088A5C60AF457 /* Fina.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Fina.entitlements; sourceTree = "<group>"; };
+		8E5F88613772F32C5DE74C74 /* AppStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStore.swift; sourceTree = "<group>"; };
+		AC0BEAAB1538CFBB32E14482 /* QuickActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActions.swift; sourceTree = "<group>"; };
+		B93EF4E34F1A29477A21E69B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		BFFEE18425D19B6B3AEB5F6C /* FinaControls.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = FinaControls.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		C441DA62A545522C651632FD /* QuickAddSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAddSheet.swift; sourceTree = "<group>"; };
+		CB36262B1B3BBD22BF6B4322 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		CC93E50B991B1FE32C70CE5B /* AppIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIntents.swift; sourceTree = "<group>"; };
+		E61784C880B5243AB35031E6 /* AddTransactionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddTransactionView.swift; sourceTree = "<group>"; };
+		EAC47F0AEEB8F9CC207F7899 /* FinaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinaApp.swift; sourceTree = "<group>"; };
+		F545E03235567058C888E1F3 /* FinaControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinaControls.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0640FCC9AD323EF956AFEBB3 /* Fina */ = {
+			isa = PBXGroup;
+			children = (
+				E61784C880B5243AB35031E6 /* AddTransactionView.swift */,
+				34ABB9FF13B628B437E6E03B /* APIClient.swift */,
+				CC93E50B991B1FE32C70CE5B /* AppIntents.swift */,
+				8E5F88613772F32C5DE74C74 /* AppStore.swift */,
+				B93EF4E34F1A29477A21E69B /* Assets.xcassets */,
+				8621818114A088A5C60AF457 /* Fina.entitlements */,
+				EAC47F0AEEB8F9CC207F7899 /* FinaApp.swift */,
+				7D47672A9A48CC2151932C78 /* HomeView.swift */,
+				77B843653C4652FBD0C654A5 /* Info.plist */,
+				00B6C19B452A6A89D34DB9AD /* LoginView.swift */,
+				CB36262B1B3BBD22BF6B4322 /* MainTabView.swift */,
+				01AE3CADF0F4EB6C609D5C4D /* Models.swift */,
+				AC0BEAAB1538CFBB32E14482 /* QuickActions.swift */,
+				C441DA62A545522C651632FD /* QuickAddSheet.swift */,
+				35B0E5C7D5C022E6D83182EA /* RootView.swift */,
+				564561F74DFE0A523E7AFB00 /* SettingsView.swift */,
+				6AF5E9FAB35F52DD14AFA978 /* StatsView.swift */,
+				8033271DA0B13E1B6A11184C /* Theme.swift */,
+				0EF3E47E30EB73B9ED046CF2 /* TransactionsView.swift */,
+			);
+			path = Fina;
+			sourceTree = "<group>";
+		};
+		0E37268091A95369DE7F502C = {
+			isa = PBXGroup;
+			children = (
+				0640FCC9AD323EF956AFEBB3 /* Fina */,
+				B24F60B055B72DF171CBCC5A /* FinaControls */,
+				13ABE86EE56A33905A2BEC17 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		13ABE86EE56A33905A2BEC17 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				00BC9EBE540A5BFF2322510D /* Fina.app */,
+				BFFEE18425D19B6B3AEB5F6C /* FinaControls.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B24F60B055B72DF171CBCC5A /* FinaControls */ = {
+			isa = PBXGroup;
+			children = (
+				3705352D269801A58F67E021 /* FinaControls.entitlements */,
+				F545E03235567058C888E1F3 /* FinaControls.swift */,
+				226A7EA0A598A6F9B28549F5 /* Info.plist */,
+			);
+			path = FinaControls;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		9E9667390089A826FAC1CBBD /* FinaControls */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EFEAFBBD23FE915C3CE29596 /* Build configuration list for PBXNativeTarget "FinaControls" */;
+			buildPhases = (
+				60DF8C2C58A679C37CF9A1D0 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FinaControls;
+			packageProductDependencies = (
+			);
+			productName = FinaControls;
+			productReference = BFFEE18425D19B6B3AEB5F6C /* FinaControls.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		F5AEC8089EE0E010BEE7ADD2 /* Fina */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F6A6D09DCC27F6E710B8E1C1 /* Build configuration list for PBXNativeTarget "Fina" */;
+			buildPhases = (
+				FA84DDDAA6ECD56AD3A23F0A /* Sources */,
+				6E1FF4DCF5863B10EF81D8D2 /* Resources */,
+				FDCB87167D804233E2209953 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				DE99FF6CE6844C3096078BBD /* PBXTargetDependency */,
+			);
+			name = Fina;
+			packageProductDependencies = (
+			);
+			productName = Fina;
+			productReference = 00BC9EBE540A5BFF2322510D /* Fina.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AE15E657BEF67D58CCD2A6CC /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					9E9667390089A826FAC1CBBD = {
+						DevelopmentTeam = 9UNXMK8UZ7;
+						ProvisioningStyle = Automatic;
+					};
+					F5AEC8089EE0E010BEE7ADD2 = {
+						DevelopmentTeam = 9UNXMK8UZ7;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 9BBDB75D9BFC2266D3164FE8 /* Build configuration list for PBXProject "Fina" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 0E37268091A95369DE7F502C;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 13ABE86EE56A33905A2BEC17 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F5AEC8089EE0E010BEE7ADD2 /* Fina */,
+				9E9667390089A826FAC1CBBD /* FinaControls */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		6E1FF4DCF5863B10EF81D8D2 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8EC56C28621B843D9EAF1D8F /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		60DF8C2C58A679C37CF9A1D0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				619C0080F9F5D16878FEAA82 /* FinaControls.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FA84DDDAA6ECD56AD3A23F0A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C23010ACB856189834C67B63 /* APIClient.swift in Sources */,
+				93B204F43DF37428E319F52D /* AddTransactionView.swift in Sources */,
+				3A4194C599B0322FF223DD40 /* AppIntents.swift in Sources */,
+				C908D3F5521D258F497795C2 /* AppStore.swift in Sources */,
+				505DDFA70205690D88B41B17 /* FinaApp.swift in Sources */,
+				207A15E1927D817688D3CF6A /* HomeView.swift in Sources */,
+				3E12F7905CEC3F0DF1C65308 /* LoginView.swift in Sources */,
+				1EDB641B53EB119632652C75 /* MainTabView.swift in Sources */,
+				291AC7997BA1E3B6DEBE37E4 /* Models.swift in Sources */,
+				DE01114A2607F16B16BCC22E /* QuickActions.swift in Sources */,
+				957F1EBB01BD02AAA0F26B8D /* QuickAddSheet.swift in Sources */,
+				2D227E2800ACC482AC7FD751 /* RootView.swift in Sources */,
+				EFED85A28FA6CD6DF78DB9CC /* SettingsView.swift in Sources */,
+				246187D38C3F09B49A4E3361 /* StatsView.swift in Sources */,
+				7CBF55842A35498B087E5676 /* Theme.swift in Sources */,
+				5C8A002EF21249A67C5C8AFF /* TransactionsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		DE99FF6CE6844C3096078BBD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9E9667390089A826FAC1CBBD /* FinaControls */;
+			targetProxy = 6D272B3EF80550B51EB9B7DB /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		285CA984C578EFF4EA11D0A6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Fina/Fina.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 9UNXMK8UZ7;
+				INFOPLIST_FILE = Fina/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Fina;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fina.app;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		4FD5C8A597E569FA4F673DE5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 9UNXMK8UZ7;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		70D794714669921373A129F6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Fina/Fina.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 9UNXMK8UZ7;
+				INFOPLIST_FILE = Fina/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Fina;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fina.app;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		78CDB53E26B69DFE444C0A29 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 9UNXMK8UZ7;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		B2BFD18418843178DE16FB52 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FinaControls/FinaControls.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 9UNXMK8UZ7;
+				INFOPLIST_FILE = FinaControls/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Fina Controls";
+				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fina.app.controls;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		B75B181A329817D403E89E01 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FinaControls/FinaControls.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 9UNXMK8UZ7;
+				INFOPLIST_FILE = FinaControls/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Fina Controls";
+				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fina.app.controls;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		9BBDB75D9BFC2266D3164FE8 /* Build configuration list for PBXProject "Fina" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				78CDB53E26B69DFE444C0A29 /* Debug */,
+				4FD5C8A597E569FA4F673DE5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		EFEAFBBD23FE915C3CE29596 /* Build configuration list for PBXNativeTarget "FinaControls" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B2BFD18418843178DE16FB52 /* Debug */,
+				B75B181A329817D403E89E01 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F6A6D09DCC27F6E710B8E1C1 /* Build configuration list for PBXNativeTarget "Fina" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				70D794714669921373A129F6 /* Debug */,
+				285CA984C578EFF4EA11D0A6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = AE15E657BEF67D58CCD2A6CC /* Project object */;
+}
