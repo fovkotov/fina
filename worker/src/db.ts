@@ -108,9 +108,10 @@ function gistUrl(env: Env): string {
 }
 
 export async function loadDb(env: Env): Promise<DbData> {
-  const res = await fetch(gistUrl(env), {
-    headers: githubHeaders(env),
-    cf: { cacheTtl: 0 },
+  // Читаем всегда свежую ревизию: иначе сразу после записи можно получить старую сессию.
+  const res = await fetch(`${gistUrl(env)}?t=${Date.now()}`, {
+    headers: { ...githubHeaders(env), "Cache-Control": "no-cache" },
+    cf: { cacheTtl: 0, cacheEverything: false },
   });
   if (!res.ok) throw new Error(`Failed to load DB gist: ${res.status}`);
   const gist = (await res.json()) as {
