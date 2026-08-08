@@ -159,6 +159,38 @@
   transform: scale(0.97);
 }
 
+/* —— Swapped-in glyph (sign / avatar) —— */
+.swap-in {
+  animation: swap-in 240ms var(--ease-out);
+}
+
+@keyframes swap-in {
+  from {
+    opacity: 0;
+    transform: scale(0.72) rotate(-10deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* —— Confirm action reveal —— */
+.reveal-up {
+  animation: reveal-up 200ms var(--ease-out);
+}
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* —— List stagger —— */
 .stagger-item {
   opacity: 0;
@@ -243,6 +275,8 @@
   .surface-enter,
   .tab-pane,
   .segment,
+  .swap-in,
+  .reveal-up,
   .stagger-item,
   .shake,
   .content-busy,

@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { TextMorph } from "torph/react";
-import { bind, play } from "cuelume";
+import { bind } from "cuelume";
 import {
   TYPE_LABELS,
   createTransaction,
   deleteTransaction,
-  fetchShare,
   fetchSummary,
   fetchTransactions,
   formatDate,
@@ -20,6 +19,8 @@ import {
   type Transaction,
   type TransactionType,
 } from "@/lib/api";
+import { SFX, sfx } from "@/lib/sounds";
+import { TxComposer, digitsOf, type OpType } from "@/components/tx-composer";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -34,6 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 
 const NAMES = ["Аня", "Андрей"] as const;
+const ACCRUAL_TYPES: TransactionType[] = ["interest", "cashback", "easy_money"];
 
 function inviteFromUrl() {
   if (typeof window === "undefined") return "FINA26";
@@ -50,11 +52,13 @@ export function FinaApp() {
   const [inviteCode, setInviteCode] = useState("FINA26");
   const [pin, setPin] = useState("1425");
   const [selectedName, setSelectedName] = useState<"Аня" | "Андрей">("Андрей");
-  const [txType, setTxType] = useState<TransactionType>("deposit");
+  const [accrualType, setAccrualType] = useState<TransactionType>("interest");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const [txMemberId, setTxMemberId] = useState("");
-  const [shareText, setShareText] = useState("");
+  const [opType, setOpType] = useState<OpType>("deposit");
+  const [opAmount, setOpAmount] = useState("");
+  const [opMemberId, setOpMemberId] = useState("");
+  const opTypeSeeded = useRef(false);
   const [tab, setTab] = useState("home");
   const [shakeError, setShakeError] = useState(0);
   const [mounted, setMounted] = useState(false);
@@ -70,27 +74,34 @@ export function FinaApp() {
     requestAnimationFrame(() => setMounted(true));
   }, []);
 
+  /** Дефолты композера: участник — тот, кто вошёл; знак — как в его прошлой операции. */
+  function seedOpDefaults(s: Summary, t: Transaction[]) {
+    const me = savedMember();
+    setOpMemberId((prev) => prev || me?.id || s.members[0]?.id || "");
+    if (opTypeSeeded.current) return;
+    opTypeSeeded.current = true;
+    const last = t.find(
+      (x) =>
+        (x.type === "deposit" || x.type === "withdrawal") &&
+        (me ? x.createdByName === me.name : true),
+    );
+    if (last) setOpType(last.type as OpType);
+  }
+
   function flashError(message: string) {
     setError(message);
     setShakeError((n) => n + 1);
-    play("error");
+    sfx("error");
   }
 
   async function refresh() {
     setLoading(true);
     setError(null);
     try {
-      const [s, t, share] = await Promise.all([
-        fetchSummary(),
-        fetchTransactions(),
-        fetchShare(),
-      ]);
+      const [s, t] = await Promise.all([fetchSummary(), fetchTransactions()]);
       setSummary(s);
       setTransactions(t);
-      setShareText(
-        `ФИНА — совместный счёт\nКод: ${share.inviteCode}\nPIN: 1425\nВеб: ${share.webUrl}\nВыбери имя: Аня или Андрей`,
-      );
-      if (!txMemberId && s.members[0]) setTxMemberId(s.members[0].id);
+      seedOpDefaults(s, t);
     } catch (e) {
       flashError(e instanceof Error ? e.message : "Ошибка загрузки");
       if (String(e).toLowerCase().includes("unauthorized")) {
@@ -108,7 +119,6 @@ export function FinaApp() {
 
   async function onLogin(e: FormEvent) {
     e.preventDefault();
-    play("press");
     setLoading(true);
     setError(null);
     try {
@@ -116,7 +126,7 @@ export function FinaApp() {
       setMember(data.member);
       setSummary(data.summary);
       setLoggedIn(true);
-      play("success");
+      sfx("success");
     } catch (err) {
       flashError(err instanceof Error ? err.message : "Не удалось войти");
     } finally {
@@ -124,9 +134,33 @@ export function FinaApp() {
     }
   }
 
-  async function onAdd(e: FormEvent) {
+  async function submitOp() {
+    const value = Number(digitsOf(opAmount));
+    if (!value) {
+      flashError("Введи сумму");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await createTransaction({
+        type: opType,
+        amountCents: value * 100,
+        note: "",
+        memberId: opMemberId || null,
+      });
+      setOpAmount("");
+      sfx(opType === "withdrawal" ? "remove" : "success");
+      await refresh();
+    } catch (err) {
+      flashError(err instanceof Error ? err.message : "Не удалось сохранить");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onAddAccrual(e: FormEvent) {
     e.preventDefault();
-    play("pulse");
     const value = Number(amount.replace(",", ".").replace(/\s/g, ""));
     if (!value || value <= 0) {
       flashError("Введи сумму");
@@ -135,16 +169,15 @@ export function FinaApp() {
     setLoading(true);
     setError(null);
     try {
-      const needsMember = txType === "deposit" || txType === "withdrawal";
       await createTransaction({
-        type: txType,
+        type: accrualType,
         amountCents: Math.round(value * 100),
         note,
-        memberId: needsMember ? txMemberId : null,
+        memberId: null,
       });
       setAmount("");
       setNote("");
-      play(txType === "withdrawal" ? "droplet" : "success");
+      sfx("success");
       await refresh();
       setTab("ops");
     } catch (err) {
@@ -154,7 +187,6 @@ export function FinaApp() {
     }
   }
 
-  const needsMember = txType === "deposit" || txType === "withdrawal";
   const totalLabel = useMemo(
     () => formatMoney(summary?.totalCents ?? 0),
     [summary?.totalCents],
@@ -186,12 +218,8 @@ export function FinaApp() {
                       type="button"
                       variant={selectedName === name ? "default" : "outline"}
                       className="segment"
-                      data-cuelume-press="sparkle"
-                      data-cuelume-release="tick"
-                      onClick={() => {
-                        play("sparkle");
-                        setSelectedName(name);
-                      }}
+                      data-cuelume-press={SFX.nav}
+                      onClick={() => setSelectedName(name)}
                     >
                       {name}
                     </Button>
@@ -204,7 +232,6 @@ export function FinaApp() {
                   id="invite"
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
-                  data-cuelume-press="tick"
                 />
               </div>
               <div className="grid gap-2">
@@ -224,8 +251,7 @@ export function FinaApp() {
               <Button
                 type="submit"
                 disabled={loading}
-                data-cuelume-press="press"
-                data-cuelume-release="release"
+                data-cuelume-press={SFX.primaryPress}
                 className="w-full"
               >
                 <span className={loading ? "content-busy" : "content-ready"}>
@@ -253,9 +279,8 @@ export function FinaApp() {
           </div>
           <Button
             variant="ghost"
-            data-cuelume-press="whisper"
+            data-cuelume-press={SFX.logout}
             onClick={() => {
-              play("whisper");
               logout();
               setLoggedIn(false);
             }}
@@ -273,25 +298,16 @@ export function FinaApp() {
           </div>
         )}
 
-        <Tabs
-          value={tab}
-          onValueChange={(v) => {
-            play("toggle");
-            setTab(v);
-          }}
-        >
+        <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
-            <TabsTrigger value="home" data-cuelume-press="sparkle">
+            <TabsTrigger value="home" data-cuelume-press={SFX.nav}>
               Главная
             </TabsTrigger>
-            <TabsTrigger value="ops" data-cuelume-press="tick">
+            <TabsTrigger value="ops" data-cuelume-press={SFX.nav}>
               Операции
             </TabsTrigger>
-            <TabsTrigger value="stats" data-cuelume-press="chime">
+            <TabsTrigger value="stats" data-cuelume-press={SFX.nav}>
               Статистика
-            </TabsTrigger>
-            <TabsTrigger value="share" data-cuelume-press="bloom">
-              Шаринг
             </TabsTrigger>
           </TabsList>
 
@@ -350,25 +366,24 @@ export function FinaApp() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Добавить операцию</CardTitle>
-                <CardDescription>Внесение, списание, проценты…</CardDescription>
+                <CardTitle>Начисления</CardTitle>
+                <CardDescription>Проценты, кэшбэк, изи мани</CardDescription>
               </CardHeader>
               <CardContent>
-                <form className="grid gap-3" onSubmit={onAdd}>
+                <form className="grid gap-3" onSubmit={onAddAccrual}>
                   <div className="grid gap-2">
                     <Label>Тип</Label>
                     <select
                       className="field border-input bg-background h-10 rounded-md border px-3 text-sm"
-                      value={txType}
+                      value={accrualType}
                       onChange={(e) => {
-                        play("toggle");
-                        setTxType(e.target.value as TransactionType);
+                        sfx("nav");
+                        setAccrualType(e.target.value as TransactionType);
                       }}
-                      data-cuelume-press="toggle"
                     >
-                      {Object.entries(TYPE_LABELS).map(([k, v]) => (
-                        <option key={k} value={k}>
-                          {v}
+                      {ACCRUAL_TYPES.map((t) => (
+                        <option key={t} value={t}>
+                          {TYPE_LABELS[t]}
                         </option>
                       ))}
                     </select>
@@ -383,25 +398,6 @@ export function FinaApp() {
                       className="tabular-nums"
                     />
                   </div>
-                  {needsMember && (
-                    <div className="grid gap-2">
-                      <Label>Кто</Label>
-                      <select
-                        className="field border-input bg-background h-10 rounded-md border px-3 text-sm"
-                        value={txMemberId}
-                        onChange={(e) => {
-                          play("tick");
-                          setTxMemberId(e.target.value);
-                        }}
-                      >
-                        {(summary?.members ?? []).map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
                   <div className="grid gap-2">
                     <Label>Комментарий</Label>
                     <Input value={note} onChange={(e) => setNote(e.target.value)} />
@@ -409,8 +405,7 @@ export function FinaApp() {
                   <Button
                     type="submit"
                     disabled={loading}
-                    data-cuelume-press="pulse"
-                    data-cuelume-release="sparkle"
+                    data-cuelume-press={SFX.primaryPress}
                   >
                     <span className={loading ? "content-busy" : "content-ready"}>
                       Сохранить
@@ -421,18 +416,31 @@ export function FinaApp() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="ops">
+          <TabsContent value="ops" className="grid gap-4">
+            <Card>
+              <CardContent>
+                <TxComposer
+                  type={opType}
+                  onTypeChange={setOpType}
+                  members={summary?.members ?? []}
+                  memberId={opMemberId}
+                  onMemberChange={setOpMemberId}
+                  amount={opAmount}
+                  onAmountChange={setOpAmount}
+                  onSubmit={submitOp}
+                  disabled={loading}
+                />
+              </CardContent>
+            </Card>
+
             <Card className={loading ? "content-busy" : "content-ready"}>
               <CardHeader className="flex-row items-center justify-between">
                 <CardTitle>Все операции</CardTitle>
                 <Button
                   variant="outline"
                   size="sm"
-                  data-cuelume-press="scan"
-                  onClick={() => {
-                    play("loading");
-                    void refresh();
-                  }}
+                  data-cuelume-press={SFX.secondary}
+                  onClick={() => void refresh()}
                 >
                   Обновить
                 </Button>
@@ -461,9 +469,8 @@ export function FinaApp() {
                       <Button
                         variant="ghost"
                         size="xs"
-                        data-cuelume-press="droplet"
+                        data-cuelume-press={SFX.remove}
                         onClick={async () => {
-                          play("droplet");
                           await deleteTransaction(tx.id);
                           await refresh();
                         }}
@@ -509,31 +516,6 @@ export function FinaApp() {
                   </TextMorph>
                 </CardTitle>
               </CardHeader>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="share">
-            <Card>
-              <CardHeader>
-                <CardTitle>Поделиться</CardTitle>
-                <CardDescription>
-                  Отправь Ане — она откроет веб или приложение и выберет своё имя.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-3">
-                <pre className="bg-muted/50 overflow-x-auto rounded-lg p-4 text-sm whitespace-pre-wrap">
-                  {shareText}
-                </pre>
-                <Button
-                  data-cuelume-press="success"
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(shareText);
-                    play("success");
-                  }}
-                >
-                  Скопировать
-                </Button>
-              </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
