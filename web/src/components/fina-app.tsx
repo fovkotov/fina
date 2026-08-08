@@ -34,7 +34,6 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 
 const NAMES = ["Аня", "Андрей"] as const;
-const ACCRUAL_TYPES: TransactionType[] = ["interest", "cashback", "easy_money"];
 const ALL_TYPES = Object.keys(TYPE_LABELS) as TransactionType[];
 const AUTO_REFRESH_MS = 20_000;
 
@@ -112,9 +111,6 @@ export function FinaApp() {
   const [inviteCode, setInviteCode] = useState("FINA26");
   const [pin, setPin] = useState("1425");
   const [selectedName, setSelectedName] = useState<"Аня" | "Андрей">("Андрей");
-  const [accrualType, setAccrualType] = useState<TransactionType>("interest");
-  const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("");
   const [opType, setOpType] = useState<OpType>("deposit");
   const [opAmount, setOpAmount] = useState("");
   const [opMemberId, setOpMemberId] = useState("");
