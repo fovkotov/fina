@@ -1,0 +1,9 @@
+name = "fina-api"
+main = "src/index.ts"
+compatibility_date = "2025-06-01"
+
+# GITHUB_TOKEN живёт в секретах: npx wrangler secret put GITHUB_TOKEN
+[vars]
+FINA_GIST_ID = "9ae03be0b8cb1a5a2d1818bd4492c8ea"
+WEB_URL = "https://fovkotov.github.io/fina"
+ALLOWED_ORIGINS = "https://fovkotov.github.io,http://localhost:3000"

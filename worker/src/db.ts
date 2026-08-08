@@ -1,5 +1,3 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-
 export type TxType =
   | "deposit"
   | "withdrawal"
@@ -49,104 +47,96 @@ export type DbData = {
   sessions: Session[];
 };
 
-const GIST_ID = process.env.FINA_GIST_ID ?? "9ae03be0b8cb1a5a2d1818bd4492c8ea";
+export type Env = {
+  GITHUB_TOKEN: string;
+  FINA_GIST_ID?: string;
+  WEB_URL?: string;
+  ALLOWED_ORIGINS?: string;
+};
+
+const DEFAULT_GIST_ID = "9ae03be0b8cb1a5a2d1818bd4492c8ea";
 const GIST_FILE = "fina-db.json";
 
-export function hashPin(pin: string): string {
-  return createHash("sha256").update(`fina:${pin}`).digest("hex");
+function hex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
-export function verifyPin(pin: string, pinHash: string): boolean {
-  const a = Buffer.from(hashPin(pin));
-  const b = Buffer.from(pinHash);
-  return a.length === b.length && timingSafeEqual(a, b);
+export async function hashPin(pin: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(`fina:${pin}`),
+  );
+  return hex(new Uint8Array(digest));
+}
+
+export async function verifyPin(pin: string, pinHash: string): Promise<boolean> {
+  const candidate = await hashPin(pin);
+  if (candidate.length !== pinHash.length) return false;
+  let diff = 0;
+  for (let i = 0; i < candidate.length; i++) {
+    diff |= candidate.charCodeAt(i) ^ pinHash.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+function randomHex(size: number): string {
+  return hex(crypto.getRandomValues(new Uint8Array(size)));
 }
 
 export function newId(): string {
-  return randomBytes(16).toString("hex");
+  return randomHex(16);
 }
 
 export function newToken(): string {
-  return randomBytes(24).toString("hex");
+  return randomHex(24);
 }
 
-function githubHeaders(): HeadersInit {
-  const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
-  if (!token) throw new Error("GITHUB_TOKEN is required for shared DB");
+function githubHeaders(env: Env): HeadersInit {
+  if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is required for shared DB");
   return {
-    Authorization: `Bearer ${token}`,
+    Authorization: `Bearer ${env.GITHUB_TOKEN}`,
     Accept: "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28",
-    "User-Agent": "fina-app",
+    "User-Agent": "fina-worker",
   };
 }
 
-async function githubFetch(url: string, init: RequestInit = {}) {
-  // Local corporate/MITM proxies sometimes break Node's CA store.
-  if (process.env.NODE_TLS_REJECT_UNAUTHORIZED !== "0" && process.env.VERCEL !== "1") {
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-  }
-  return fetch(url, { ...init, cache: "no-store" });
+function gistUrl(env: Env): string {
+  return `https://api.github.com/gists/${env.FINA_GIST_ID ?? DEFAULT_GIST_ID}`;
 }
 
-export async function loadDb(): Promise<DbData> {
-  const res = await githubFetch(`https://api.github.com/gists/${GIST_ID}`, {
-    headers: githubHeaders(),
+export async function loadDb(env: Env): Promise<DbData> {
+  const res = await fetch(gistUrl(env), {
+    headers: githubHeaders(env),
+    cf: { cacheTtl: 0 },
   });
-  if (!res.ok) {
-    throw new Error(`Failed to load DB gist: ${res.status}`);
-  }
+  if (!res.ok) throw new Error(`Failed to load DB gist: ${res.status}`);
   const gist = (await res.json()) as {
-    files: Record<string, { content?: string; truncated?: boolean; raw_url?: string }>;
+    files: Record<string, { content?: string; raw_url?: string }>;
   };
   const file = gist.files[GIST_FILE];
   let content = file?.content;
   if (!content && file?.raw_url) {
-    const raw = await githubFetch(file.raw_url, {
-      headers: githubHeaders(),
-    });
+    const raw = await fetch(file.raw_url, { headers: githubHeaders(env) });
     content = await raw.text();
   }
   if (!content) throw new Error("DB gist file empty");
   return JSON.parse(content) as DbData;
 }
 
-export async function saveDb(data: DbData): Promise<void> {
-  const res = await githubFetch(`https://api.github.com/gists/${GIST_ID}`, {
+export async function saveDb(env: Env, data: DbData): Promise<void> {
+  const res = await fetch(gistUrl(env), {
     method: "PATCH",
-    headers: {
-      ...githubHeaders(),
-      "Content-Type": "application/json",
-    },
+    headers: { ...githubHeaders(env), "Content-Type": "application/json" },
     body: JSON.stringify({
-      files: {
-        [GIST_FILE]: { content: JSON.stringify(data, null, 2) },
-      },
+      files: { [GIST_FILE]: { content: JSON.stringify(data, null, 2) } },
     }),
   });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to save DB: ${res.status} ${text}`);
+    throw new Error(`Failed to save DB: ${res.status} ${await res.text()}`);
   }
-}
-
-export async function withDb<T>(
-  fn: (data: DbData) => T | Promise<T>,
-): Promise<T> {
-  // simple retry for concurrent writes
-  let lastError: unknown;
-  for (let i = 0; i < 3; i++) {
-    try {
-      const data = await loadDb();
-      const result = await fn(data);
-      await saveDb(data);
-      return result;
-    } catch (e) {
-      lastError = e;
-      await new Promise((r) => setTimeout(r, 150 * (i + 1)));
-    }
-  }
-  throw lastError;
 }
 
 export function getSummary(data: DbData, householdId: string) {
@@ -175,12 +165,7 @@ export function getSummary(data: DbData, householdId: string) {
         if (t.type === "deposit") balance += t.amount_cents;
         if (t.type === "withdrawal") balance -= t.amount_cents;
       }
-      return {
-        id: m.id,
-        name: m.name,
-        accent: m.accent,
-        balanceCents: balance,
-      };
+      return { id: m.id, name: m.name, accent: m.accent, balanceCents: balance };
     })
     .sort((a, b) => a.name.localeCompare(b.name, "ru"));
 

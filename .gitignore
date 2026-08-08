@@ -18,3 +18,7 @@ web/.env*.local
 data/*.sqlite*
 **/node_modules/
 web/.next/
+
+# worker
+worker/node_modules
+worker/.wrangler

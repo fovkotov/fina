@@ -10,14 +10,16 @@ export type OpType = "deposit" | "withdrawal";
 
 const QUICK_AMOUNTS = [1000, 2000, 5000];
 
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 const AVATARS: Record<string, string> = {
-  Аня: "/fina/avatar-anya.png",
-  Андрей: "/fina/avatar-andrey.png",
+  Аня: `${BASE_PATH}/assets/avatar-anya.png`,
+  Андрей: `${BASE_PATH}/assets/avatar-andrey.png`,
 };
 
 const SIGN_IMAGES: Record<OpType, string> = {
-  deposit: "/fina/sign-plus.png",
-  withdrawal: "/fina/sign-minus.png",
+  deposit: `${BASE_PATH}/assets/sign-plus.png`,
+  withdrawal: `${BASE_PATH}/assets/sign-minus.png`,
 };
 
 export function digitsOf(value: string) {

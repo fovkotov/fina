@@ -38,6 +38,9 @@ export type Transaction = {
   createdByName?: string | null;
 };
 
+/** Базовый URL API (Cloudflare Worker). Пусто — значит тот же origin. */
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "").replace(/\/$/, "");
+
 function token() {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("token");
@@ -48,7 +51,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   headers.set("Content-Type", "application/json");
   const t = token();
   if (t) headers.set("Authorization", `Bearer ${t}`);
-  const res = await fetch(path, { ...init, headers });
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
   if (!res.ok) {
     let message = `Ошибка ${res.status}`;
     try {
