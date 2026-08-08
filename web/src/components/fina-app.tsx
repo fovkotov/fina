@@ -15,6 +15,8 @@ import {
   login,
   logout,
   savedMember,
+  savedToken,
+  setApiBase,
   updateTransaction,
   type Summary,
   type Transaction,
@@ -641,10 +643,11 @@ export function FinaApp() {
               </CardHeader>
               <CardContent>
                 {months.map((month) => (
-                  /* Месяцы идут вплотную: отступ живёт внутри секции, иначе
-                     липкий заголовок успевал бы уехать до прихода следующего. */
-                  <section key={month.key} className="space-y-1 pb-6 last:pb-0">
-                    <div className="border-border/70 bg-card sticky top-0 z-10 -mx-5 flex items-baseline justify-between gap-3 border-b px-5 pt-2 pb-1.5 backdrop-blur-sm">
+                  /* Секции идут вплотную, воздух между месяцами даёт верхний
+                     отступ заголовка: липкий заголовок держится до последней
+                     строки месяца, и следующий выталкивает его без зазора. */
+                  <section key={month.key} className="space-y-1">
+                    <div className="border-border/70 bg-card sticky top-0 z-10 -mx-5 flex items-baseline justify-between gap-3 border-b px-5 pt-5 pb-1.5 backdrop-blur-sm">
                       <h3 className="text-muted-foreground text-[0.6875rem] font-semibold tracking-[0.09em] uppercase">
                         {month.label}
                       </h3>

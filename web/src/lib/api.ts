@@ -37,11 +37,65 @@ export type Transaction = {
 };
 
 /** Базовый URL API (Cloudflare Worker). Пусто — значит тот же origin. */
-const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "").replace(/\/$/, "");
+const DEFAULT_API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "").replace(/\/$/, "");
+const API_BASE_KEY = "fina-api-base";
+const REQUEST_TIMEOUT_MS = 15_000;
+
+/**
+ * Приватный режим Safari умеет ронять localStorage — тогда живём в памяти:
+ * сессия не переживёт перезагрузку, но вход не сломается.
+ */
+const memory = new Map<string, string>();
+const store = {
+  get(key: string) {
+    if (typeof window === "undefined") return null;
+    try {
+      return localStorage.getItem(key) ?? memory.get(key) ?? null;
+    } catch {
+      return memory.get(key) ?? null;
+    }
+  },
+  set(key: string, value: string) {
+    memory.set(key, value);
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      /* ignore */
+    }
+  },
+  remove(key: string) {
+    memory.delete(key);
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* ignore */
+    }
+  },
+};
+
+/**
+ * Домен воркера у части операторов недоступен, поэтому запасной адрес можно
+ * подставить через `?api=https://...` — он запоминается в localStorage.
+ */
+export function apiBase() {
+  return store.get(API_BASE_KEY)?.replace(/\/$/, "") || DEFAULT_API_BASE;
+}
+
+export function setApiBase(url: string | null) {
+  if (url) store.set(API_BASE_KEY, url.replace(/\/$/, ""));
+  else store.remove(API_BASE_KEY);
+}
 
 function token() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
+  return store.get("token");
+}
+
+function hostOf(base: string) {
+  try {
+    return new URL(base || window.location.origin).host;
+  } catch {
+    return base;
+  }
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -49,7 +103,26 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   headers.set("Content-Type", "application/json");
   const t = token();
   if (t) headers.set("Authorization", `Bearer ${t}`);
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+
+  const base = apiBase();
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), REQUEST_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, { ...init, headers, signal: abort.signal });
+  } catch (e) {
+    // Сюда попадают только сетевые сбои: DNS, разрыв TLS, блокировка провайдером.
+    const reason =
+      e instanceof Error && e.name === "AbortError"
+        ? "не ответил за 15 секунд"
+        : "недоступен";
+    throw new Error(
+      `Сервер ${hostOf(base)} ${reason}. Дело не в коде или PIN — эта сеть до него не достучалась. Попробуй другой Wi-Fi, мобильный интернет или VPN.`,
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+
   if (!res.ok) {
     let message = `Ошибка ${res.status}`;
     try {
@@ -72,19 +145,22 @@ export async function login(inviteCode: string, pin: string, memberName: string)
     method: "POST",
     body: JSON.stringify({ inviteCode, pin, memberName }),
   });
-  localStorage.setItem("token", data.token);
-  localStorage.setItem("member", JSON.stringify(data.member));
+  store.set("token", data.token);
+  store.set("member", JSON.stringify(data.member));
   return data;
 }
 
 export function logout() {
-  localStorage.removeItem("token");
-  localStorage.removeItem("member");
+  store.remove("token");
+  store.remove("member");
+}
+
+export function savedToken() {
+  return store.get("token");
 }
 
 export function savedMember(): Member | null {
-  if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem("member");
+  const raw = store.get("member");
   if (!raw) return null;
   try {
     return JSON.parse(raw) as Member;
