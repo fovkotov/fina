@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { TextMorph } from "torph/react";
 import { bind } from "cuelume";
+import { Eye, EyeOff } from "lucide-react";
 import {
   TYPE_LABELS,
   createTransaction,
@@ -46,6 +47,8 @@ import { Label } from "@/components/ui/label";
 const NAMES = ["Аня", "Андрей"] as const;
 const ALL_TYPES = Object.keys(TYPE_LABELS) as TransactionType[];
 const AUTO_REFRESH_MS = 20_000;
+const HIDE_BALANCES_KEY = "fina-hide-balances";
+const HIDDEN_MONEY = "••••••";
 
 function inviteFromUrl() {
   if (typeof window === "undefined") return "FINA26";
@@ -148,6 +151,7 @@ export function FinaApp() {
   const [shakeError, setShakeError] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [syncedAt, setSyncedAt] = useState<number | null>(null);
+  const [hideBalances, setHideBalances] = useState(false);
   const [editing, setEditing] = useState<EditDraft | null>(null);
   /** Операция, для которой открыт попап подтверждения удаления. */
   const [pendingDelete, setPendingDelete] = useState<Transaction | null>(null);
@@ -163,6 +167,7 @@ export function FinaApp() {
     bind();
     setInviteCode(inviteFromUrl());
     if (savedMember() && localStorage.getItem("token")) setLoggedIn(true);
+    if (localStorage.getItem(HIDE_BALANCES_KEY) === "1") setHideBalances(true);
     requestAnimationFrame(() => setMounted(true));
   }, []);
 
@@ -422,9 +427,23 @@ export function FinaApp() {
   }
 
   const totalLabel = useMemo(
-    () => formatMoney(summary?.totalCents ?? 0),
-    [summary?.totalCents],
+    () =>
+      hideBalances ? HIDDEN_MONEY : formatMoney(summary?.totalCents ?? 0),
+    [hideBalances, summary?.totalCents],
   );
+
+  function toggleHideBalances() {
+    setHideBalances((prev) => {
+      const next = !prev;
+      localStorage.setItem(HIDE_BALANCES_KEY, next ? "1" : "0");
+      return next;
+    });
+    sfx("nav");
+  }
+
+  function moneyLabel(cents: number) {
+    return hideBalances ? HIDDEN_MONEY : formatMoney(cents);
+  }
 
   const months = useMemo(() => groupByMonth(transactions), [transactions]);
 
@@ -518,10 +537,22 @@ export function FinaApp() {
             <Card className={loading ? "content-busy" : "content-ready"}>
               <CardHeader>
                 <CardDescription>Всего на счёте</CardDescription>
-                <CardTitle className="font-heading text-4xl md:text-5xl tabular-nums">
+                <CardTitle className="font-heading flex items-center gap-2 text-4xl md:gap-3 md:text-5xl tabular-nums">
                   <TextMorph as="span" locale="ru" duration={280}>
                     {totalLabel}
                   </TextMorph>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="text-muted-foreground hover:text-foreground -mt-0.5"
+                    aria-label={hideBalances ? "Показать суммы" : "Скрыть суммы"}
+                    aria-pressed={hideBalances}
+                    data-cuelume-press={SFX.nav}
+                    onClick={toggleHideBalances}
+                  >
+                    {hideBalances ? <EyeOff /> : <Eye />}
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid gap-4">
@@ -535,7 +566,7 @@ export function FinaApp() {
                       <p className="text-sm text-muted-foreground">{m.name}</p>
                       <p className="text-xl font-semibold tabular-nums">
                         <TextMorph as="span" locale="ru" duration={240}>
-                          {formatMoney(m.balanceCents ?? 0)}
+                          {moneyLabel(m.balanceCents ?? 0)}
                         </TextMorph>
                       </p>
                     </div>
@@ -545,7 +576,7 @@ export function FinaApp() {
                   <div className="stagger-item rounded-lg bg-muted/60 p-3">
                     <p className="text-muted-foreground">Изи мани</p>
                     <TextMorph as="p" locale="ru" duration={240} className="font-medium tabular-nums">
-                      {formatMoney(summary?.accrualsCents ?? 0)}
+                      {moneyLabel(summary?.accrualsCents ?? 0)}
                     </TextMorph>
                   </div>
                 </div>
@@ -608,10 +639,12 @@ export function FinaApp() {
                   Обновить
                 </Button>
               </CardHeader>
-              <CardContent className="grid gap-7">
+              <CardContent>
                 {months.map((month) => (
-                  <section key={month.key} className="grid gap-1">
-                    <div className="mb-1 flex items-baseline justify-between gap-3 border-b border-border/70 pb-1.5">
+                  /* Месяцы идут вплотную: отступ живёт внутри секции, иначе
+                     липкий заголовок успевал бы уехать до прихода следующего. */
+                  <section key={month.key} className="space-y-1 pb-6 last:pb-0">
+                    <div className="border-border/70 bg-card sticky top-0 z-10 -mx-5 flex items-baseline justify-between gap-3 border-b px-5 pt-2 pb-1.5 backdrop-blur-sm">
                       <h3 className="text-muted-foreground text-[0.6875rem] font-semibold tracking-[0.09em] uppercase">
                         {month.label}
                       </h3>

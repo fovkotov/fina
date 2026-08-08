@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { TextMorph } from "torph/react";
 import { Button } from "@/components/ui/button";
+import { AVATARS, SIGN_IMAGES } from "@/lib/assets";
 import { SFX } from "@/lib/sounds";
 import { TYPE_LABELS, type Member } from "@/lib/api";
 
@@ -13,18 +14,6 @@ export type SpecialType = "cashback" | "interest";
 
 const QUICK_AMOUNTS = [1000, 2000, 5000];
 const SPECIAL_TYPES: SpecialType[] = ["cashback", "interest"];
-
-const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-
-const AVATARS: Record<string, string> = {
-  Аня: `${BASE_PATH}/assets/avatar-anya.png`,
-  Андрей: `${BASE_PATH}/assets/avatar-andrey.png`,
-};
-
-const SIGN_IMAGES: Record<OpType, string> = {
-  deposit: `${BASE_PATH}/assets/sign-plus.png`,
-  withdrawal: `${BASE_PATH}/assets/sign-minus.png`,
-};
 
 export function digitsOf(value: string) {
   return value.replace(/\D/g, "");
@@ -132,6 +121,7 @@ export function TxComposer({
             alt=""
             width={42}
             height={42}
+            priority
           />
         </button>
 
@@ -165,6 +155,7 @@ export function TxComposer({
               alt=""
               width={42}
               height={42}
+              priority
             />
           ) : (
             <span
