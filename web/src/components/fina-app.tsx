@@ -48,7 +48,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 const NAMES = ["Аня", "Андрей"] as const;
 const ALL_TYPES = Object.keys(TYPE_LABELS) as TransactionType[];
-const AUTO_REFRESH_MS = 20_000;
 const HIDE_BALANCES_KEY = "fina-hide-balances";
 const HIDDEN_MONEY = "••••••";
 
@@ -177,7 +176,6 @@ export function FinaApp() {
   const opTypeSeeded = useRef(false);
   const [shakeError, setShakeError] = useState(0);
   const [mounted, setMounted] = useState(false);
-  const [syncedAt, setSyncedAt] = useState<number | null>(null);
   const [hideBalances, setHideBalances] = useState(false);
   const [editing, setEditing] = useState<EditDraft | null>(null);
   /** Операция, для которой открыт попап подтверждения удаления. */
@@ -186,9 +184,6 @@ export function FinaApp() {
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [pressingId, setPressingId] = useState<string | null>(null);
   const longPress = useRef<{ timer: number; x: number; y: number } | null>(null);
-  /** Пока идёт свой запрос или открыта форма правки, фоновое обновление молчит. */
-  const busyRef = useRef(false);
-  const editingRef = useRef(false);
 
   useEffect(() => {
     bind();
@@ -222,12 +217,10 @@ export function FinaApp() {
   async function refresh() {
     setLoading(true);
     setError(null);
-    busyRef.current = true;
     try {
       const [s, t] = await Promise.all([fetchSummary(), fetchTransactions()]);
       setSummary(s);
       setTransactions(t);
-      setSyncedAt(Date.now());
       seedOpDefaults(s, t);
     } catch (e) {
       flashError(e instanceof Error ? e.message : "Ошибка загрузки");
@@ -236,50 +229,12 @@ export function FinaApp() {
         setLoggedIn(false);
       }
     } finally {
-      busyRef.current = false;
       setLoading(false);
     }
   }
 
   useEffect(() => {
     if (loggedIn) void refresh();
-  }, [loggedIn]);
-
-  /**
-   * Фоновое обновление: тикает по таймеру и при возврате на вкладку.
-   * Тихое — без спиннера и баннера ошибки, чтобы не дёргать интерфейс.
-   */
-  useEffect(() => {
-    if (!loggedIn) return;
-
-    async function pull() {
-      if (document.visibilityState !== "visible") return;
-      if (busyRef.current || editingRef.current) return;
-      busyRef.current = true;
-      try {
-        const [s, t] = await Promise.all([fetchSummary(), fetchTransactions()]);
-        setSummary(s);
-        setTransactions(t);
-        setSyncedAt(Date.now());
-      } catch (e) {
-        if (String(e).toLowerCase().includes("unauthorized")) {
-          logout();
-          setLoggedIn(false);
-        }
-      } finally {
-        busyRef.current = false;
-      }
-    }
-
-    const timer = setInterval(() => void pull(), AUTO_REFRESH_MS);
-    const onWake = () => void pull();
-    document.addEventListener("visibilitychange", onWake);
-    window.addEventListener("focus", onWake);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", onWake);
-      window.removeEventListener("focus", onWake);
-    };
   }, [loggedIn]);
 
   /**
@@ -336,7 +291,6 @@ export function FinaApp() {
   }, [revealedId]);
 
   function startEdit(tx: Transaction) {
-    editingRef.current = true;
     setRevealedId(null);
     setEditing({
       id: tx.id,
@@ -351,7 +305,6 @@ export function FinaApp() {
   }
 
   function cancelEdit() {
-    editingRef.current = false;
     setEditing(null);
   }
 
@@ -365,7 +318,6 @@ export function FinaApp() {
     }
     setLoading(true);
     setError(null);
-    busyRef.current = true;
     try {
       await updateTransaction(editing.id, {
         type: editing.type,
@@ -380,7 +332,6 @@ export function FinaApp() {
     } catch (err) {
       flashError(err instanceof Error ? err.message : "Не удалось сохранить");
     } finally {
-      busyRef.current = false;
       setLoading(false);
     }
   }
@@ -395,7 +346,6 @@ export function FinaApp() {
     setLoading(true);
     setError(null);
     setPendingDelete(null);
-    busyRef.current = true;
     try {
       await deleteTransaction(id);
       if (editing?.id === id) cancelEdit();
@@ -403,7 +353,6 @@ export function FinaApp() {
     } catch (err) {
       flashError(err instanceof Error ? err.message : "Не удалось удалить");
     } finally {
-      busyRef.current = false;
       setLoading(false);
     }
   }
@@ -432,7 +381,6 @@ export function FinaApp() {
     }
     setLoading(true);
     setError(null);
-    busyRef.current = true;
     const type = opSpecial ?? opType;
     try {
       await createTransaction({
@@ -449,7 +397,6 @@ export function FinaApp() {
     } catch (err) {
       flashError(err instanceof Error ? err.message : "Не удалось сохранить");
     } finally {
-      busyRef.current = false;
       setLoading(false);
     }
   }
@@ -645,28 +592,6 @@ export function FinaApp() {
 
           <div className="grid gap-4">
             <Card className={loading ? "content-busy" : "content-ready"}>
-              <CardHeader className="flex-row items-center justify-between gap-3">
-                <div className="grid gap-1">
-                  <CardTitle className="text-base tracking-tight">
-                    Все операции
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    <TextMorph as="span" locale="ru" duration={200}>
-                      {syncedAt
-                        ? `Обновлено в ${new Date(syncedAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`
-                        : "Обновляем…"}
-                    </TextMorph>
-                  </CardDescription>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  data-cuelume-press={SFX.secondary}
-                  onClick={() => void refresh()}
-                >
-                  Обновить
-                </Button>
-              </CardHeader>
               <CardContent>
                 {months.map((month) => (
                   /* Секции идут вплотную, воздух между месяцами даёт верхний
