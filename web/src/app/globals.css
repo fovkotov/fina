@@ -330,6 +330,46 @@
   }
 }
 
+/* —— Модальное подтверждение —— */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  min-height: 100dvh;
+  background-color: color-mix(in srgb, var(--foreground) 20%, transparent);
+  backdrop-filter: blur(2px);
+  transition: opacity 200ms var(--ease-out);
+}
+
+/* iOS 26+: подложка должна закрывать весь видимый вьюпорт. */
+@supports (-webkit-touch-callout: none) {
+  .dialog-backdrop {
+    position: absolute;
+  }
+}
+
+.dialog-backdrop[data-starting-style],
+.dialog-backdrop[data-ending-style] {
+  opacity: 0;
+}
+
+.dialog-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  transition:
+    translate 200ms var(--ease-out),
+    scale 200ms var(--ease-out),
+    opacity 200ms var(--ease-out);
+}
+
+.dialog-popup[data-starting-style],
+.dialog-popup[data-ending-style] {
+  opacity: 0;
+  scale: 0.96;
+  translate: -50% calc(-50% + 6px);
+}
+
 /* —— Selects / inputs —— */
 .field {
   transition:
@@ -356,7 +396,9 @@
   .content-busy,
   .content-ready,
   .row-amount,
-  .row-actions {
+  .row-actions,
+  .dialog-backdrop,
+  .dialog-popup {
     animation: none !important;
     transition:
       opacity 160ms ease,
@@ -368,6 +410,12 @@
 
   .stagger-item {
     opacity: 1;
+  }
+
+  .dialog-popup[data-starting-style],
+  .dialog-popup[data-ending-style] {
+    scale: 1;
+    translate: -50% -50%;
   }
 
   @media (hover: hover) and (pointer: fine) {

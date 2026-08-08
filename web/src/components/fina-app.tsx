@@ -26,6 +26,13 @@ import {
   type OpType,
   type SpecialType,
 } from "@/components/tx-composer";
+import {
+  AlertDialog,
+  AlertDialogClose,
+  AlertDialogDescription,
+  AlertDialogPopup,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -56,6 +63,25 @@ function monthLabel(date: Date) {
     year: "numeric",
   });
   return label.charAt(0).toUpperCase() + label.slice(1).replace(/\s*г\.$/, "");
+}
+
+/**
+ * Заметка вида «август» или «августа 2025» повторяет заголовок месяца —
+ * в строке она пустая трата места. Всё остальное («кэшбэк за июнь») остаётся.
+ */
+function noteWithoutMonth(note: string | undefined, iso: string) {
+  const text = (note ?? "").trim();
+  if (!text) return "";
+  const date = new Date(iso);
+  const nominative = date.toLocaleDateString("ru-RU", { month: "long" });
+  const genitive = date
+    .toLocaleDateString("ru-RU", { day: "numeric", month: "long" })
+    .replace(/^\d+\s+/, "");
+  const bare = text
+    .toLowerCase()
+    .replace(/\s*\d{4}\s*(г\.?)?$/, "")
+    .trim();
+  return bare === nominative || bare === genitive ? "" : text;
 }
 
 /** Операции по месяцам: свежие сверху, внутри месяца — порядок как пришёл из API. */
@@ -123,6 +149,8 @@ export function FinaApp() {
   const [mounted, setMounted] = useState(false);
   const [syncedAt, setSyncedAt] = useState<number | null>(null);
   const [editing, setEditing] = useState<EditDraft | null>(null);
+  /** Операция, для которой открыт попап подтверждения удаления. */
+  const [pendingDelete, setPendingDelete] = useState<Transaction | null>(null);
   /** Строка, у которой открыты действия: на тапскрине — по долгому нажатию. */
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [pressingId, setPressingId] = useState<string | null>(null);
@@ -324,10 +352,16 @@ export function FinaApp() {
     }
   }
 
+  /** Удаление необратимо, поэтому идёт через попап подтверждения. */
+  function askRemove(tx: Transaction) {
+    setRevealedId(null);
+    setPendingDelete(tx);
+  }
+
   async function removeTx(id: string) {
     setLoading(true);
     setError(null);
-    setRevealedId(null);
+    setPendingDelete(null);
     busyRef.current = true;
     try {
       await deleteTransaction(id);
@@ -712,8 +746,12 @@ export function FinaApp() {
                               )}
                             </p>
                             <p className="text-muted-foreground mt-1 truncate text-xs leading-tight">
-                              {tx.note ? `${tx.note} · ` : ""}
-                              {formatDate(tx.occurredAt)}
+                              {[
+                                noteWithoutMonth(tx.note, tx.occurredAt),
+                                formatDate(tx.occurredAt),
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
                             </p>
                           </div>
                           <div className="row-swap shrink-0">
@@ -737,8 +775,8 @@ export function FinaApp() {
                                 variant="ghost"
                                 size="xs"
                                 className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                data-cuelume-press={SFX.remove}
-                                onClick={() => void removeTx(tx.id)}
+                                data-cuelume-press={SFX.secondary}
+                                onClick={() => askRemove(tx)}
                               >
                                 Удалить
                               </Button>
@@ -759,6 +797,41 @@ export function FinaApp() {
           </div>
         </div>
       </div>
+
+      <AlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+      >
+        <AlertDialogPopup>
+          <div className="grid gap-1.5">
+            <AlertDialogTitle>Удалить операцию?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete
+                ? `${TYPE_LABELS[pendingDelete.type]} · ${formatMoney(pendingDelete.amountCents)} · ${formatDate(pendingDelete.occurredAt)}`
+                : ""}
+            </AlertDialogDescription>
+            <p className="text-muted-foreground text-sm">Отменить не получится.</p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <AlertDialogClose
+              render={<Button variant="outline" data-cuelume-press={SFX.secondary} />}
+            >
+              Отмена
+            </AlertDialogClose>
+            <Button
+              variant="destructive"
+              data-cuelume-press={SFX.remove}
+              onClick={() => {
+                if (pendingDelete) void removeTx(pendingDelete.id);
+              }}
+            >
+              Удалить
+            </Button>
+          </div>
+        </AlertDialogPopup>
+      </AlertDialog>
     </div>
   );
 }
