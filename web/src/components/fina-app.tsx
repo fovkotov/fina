@@ -36,8 +36,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-
 const NAMES = ["Аня", "Андрей"] as const;
 const ALL_TYPES = Object.keys(TYPE_LABELS) as TransactionType[];
 const AUTO_REFRESH_MS = 20_000;
@@ -125,6 +123,10 @@ export function FinaApp() {
   const [mounted, setMounted] = useState(false);
   const [syncedAt, setSyncedAt] = useState<number | null>(null);
   const [editing, setEditing] = useState<EditDraft | null>(null);
+  /** Строка, у которой открыты действия: на тапскрине — по долгому нажатию. */
+  const [revealedId, setRevealedId] = useState<string | null>(null);
+  const [pressingId, setPressingId] = useState<string | null>(null);
+  const longPress = useRef<{ timer: number; x: number; y: number } | null>(null);
   /** Пока идёт свой запрос или открыта форма правки, фоновое обновление молчит. */
   const busyRef = useRef(false);
   const editingRef = useRef(false);
@@ -219,8 +221,62 @@ export function FinaApp() {
     };
   }, [loggedIn]);
 
+  /**
+   * Долгое нажатие на строку открывает её действия — это тапскринный аналог
+   * наведения мышью. Уводом пальца жест отменяется, чтобы не мешать скроллу.
+   */
+  function cancelLongPress() {
+    if (longPress.current) {
+      window.clearTimeout(longPress.current.timer);
+      longPress.current = null;
+    }
+    setPressingId(null);
+  }
+
+  function onRowPointerDown(e: React.PointerEvent, id: string) {
+    if (e.pointerType === "mouse") return;
+    cancelLongPress();
+    setPressingId(id);
+    const timer = window.setTimeout(() => {
+      longPress.current = null;
+      setPressingId(null);
+      setRevealedId(id);
+      navigator.vibrate?.(8);
+      sfx("nav");
+    }, 420);
+    longPress.current = { timer, x: e.clientX, y: e.clientY };
+  }
+
+  function onRowPointerMove(e: React.PointerEvent) {
+    const press = longPress.current;
+    if (!press) return;
+    if (Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) cancelLongPress();
+  }
+
+  /** Открытые действия закрываются касанием мимо строки, скроллом или Esc. */
+  useEffect(() => {
+    if (!revealedId) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const row = (e.target as HTMLElement | null)?.closest<HTMLElement>("[data-row-id]");
+      if (row?.dataset.rowId !== revealedId) setRevealedId(null);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setRevealedId(null);
+    };
+    const onScroll = () => setRevealedId(null);
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [revealedId]);
+
   function startEdit(tx: Transaction) {
     editingRef.current = true;
+    setRevealedId(null);
     setEditing({
       id: tx.id,
       type: tx.type,
@@ -271,6 +327,7 @@ export function FinaApp() {
   async function removeTx(id: string) {
     setLoading(true);
     setError(null);
+    setRevealedId(null);
     busyRef.current = true;
     try {
       await deleteTransaction(id);
@@ -451,11 +508,8 @@ export function FinaApp() {
                   {(summary?.members ?? []).map((m, i) => (
                     <div
                       key={m.id}
-                      className="stagger-item rounded-xl border p-4"
-                      style={{
-                        borderColor: m.accent,
-                        animationDelay: `${i * 40}ms`,
-                      }}
+                      className="stagger-item bg-muted/60 rounded-xl p-4"
+                      style={{ animationDelay: `${i * 40}ms` }}
                     >
                       <p className="text-sm text-muted-foreground">{m.name}</p>
                       <p className="text-xl font-semibold tabular-nums">
@@ -510,10 +564,12 @@ export function FinaApp() {
 
           <div className="grid gap-4">
             <Card className={loading ? "content-busy" : "content-ready"}>
-              <CardHeader className="flex-row items-center justify-between">
+              <CardHeader className="flex-row items-center justify-between gap-3">
                 <div className="grid gap-1">
-                  <CardTitle>Все операции</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-base tracking-tight">
+                    Все операции
+                  </CardTitle>
+                  <CardDescription className="text-xs">
                     <TextMorph as="span" locale="ru" duration={200}>
                       {syncedAt
                         ? `Обновлено в ${new Date(syncedAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`
@@ -530,12 +586,16 @@ export function FinaApp() {
                   Обновить
                 </Button>
               </CardHeader>
-              <CardContent className="grid gap-6">
+              <CardContent className="grid gap-7">
                 {months.map((month) => (
-                  <section key={month.key} className="grid gap-3">
-                    <div className="flex items-baseline justify-between gap-3 border-b pb-2">
-                      <h3 className="font-medium">{month.label}</h3>
-                      <p className="text-muted-foreground text-sm tabular-nums">
+                  <section key={month.key} className="grid gap-1">
+                    <div className="mb-1 flex items-baseline justify-between gap-3 border-b border-border/70 pb-1.5">
+                      <h3 className="text-muted-foreground text-[0.6875rem] font-semibold tracking-[0.09em] uppercase">
+                        {month.label}
+                      </h3>
+                      <p
+                        className={`text-xs font-medium tabular-nums ${month.totalCents < 0 ? "text-destructive/80" : "text-muted-foreground"}`}
+                      >
                         <TextMorph as="span" locale="ru" duration={200}>
                           {`${month.totalCents < 0 ? "−" : "+"}${formatMoney(Math.abs(month.totalCents))}`}
                         </TextMorph>
@@ -546,7 +606,7 @@ export function FinaApp() {
                       editing?.id === tx.id ? (
                         <form
                           key={tx.id}
-                          className="grid gap-3 rounded-xl border p-3"
+                          className="bg-muted/30 my-1 grid gap-3 rounded-xl border p-3"
                           onSubmit={saveEdit}
                         >
                           <div className="grid gap-2 sm:grid-cols-2">
@@ -644,26 +704,39 @@ export function FinaApp() {
                       ) : (
                         <div
                           key={tx.id}
-                          className="stagger-item flex items-start justify-between gap-3 border-b border-border/60 pb-3 last:border-0"
+                          data-row-id={tx.id}
+                          data-revealed={revealedId === tx.id ? "true" : "false"}
+                          data-pressing={pressingId === tx.id ? "true" : "false"}
+                          className="tx-row stagger-item -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2"
+                          onPointerDown={(e) => onRowPointerDown(e, tx.id)}
+                          onPointerMove={onRowPointerMove}
+                          onPointerUp={cancelLongPress}
+                          onPointerCancel={cancelLongPress}
+                          onPointerLeave={cancelLongPress}
                         >
-                          <div>
-                            <p className="font-medium">
-                              {tx.memberName ? `${tx.memberName} · ` : ""}
+                          <div className="min-w-0">
+                            <p className="truncate text-sm leading-tight font-medium">
                               {TYPE_LABELS[tx.type]}
+                              {tx.memberName && (
+                                <span className="text-muted-foreground font-normal">
+                                  {` · ${tx.memberName}`}
+                                </span>
+                              )}
                             </p>
-                            <p className="text-muted-foreground text-sm">
-                              {tx.note || "—"} · {formatDate(tx.occurredAt)}
+                            <p className="text-muted-foreground mt-1 truncate text-xs leading-tight">
+                              {tx.note ? `${tx.note} · ` : ""}
+                              {formatDate(tx.occurredAt)}
                             </p>
                           </div>
-                          <div className="flex flex-col items-end gap-1">
-                            <Badge
-                              variant={tx.type === "withdrawal" ? "destructive" : "secondary"}
+                          <div className="row-swap shrink-0">
+                            <span
+                              className={`row-amount text-sm font-semibold tabular-nums ${tx.type === "withdrawal" ? "text-destructive" : "text-foreground"}`}
                             >
                               <TextMorph as="span" locale="ru" duration={200}>
                                 {`${tx.type === "withdrawal" ? "−" : "+"}${formatMoney(tx.amountCents)}`}
                               </TextMorph>
-                            </Badge>
-                            <div className="flex items-center">
+                            </span>
+                            <div className="row-actions flex items-center gap-0.5">
                               <Button
                                 variant="ghost"
                                 size="xs"
@@ -675,6 +748,7 @@ export function FinaApp() {
                               <Button
                                 variant="ghost"
                                 size="xs"
+                                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                                 data-cuelume-press={SFX.remove}
                                 onClick={() => void removeTx(tx.id)}
                               >
@@ -688,7 +762,9 @@ export function FinaApp() {
                   </section>
                 ))}
                 {!months.length && (
-                  <p className="text-muted-foreground text-sm">Операций пока нет</p>
+                  <p className="text-muted-foreground py-6 text-center text-sm">
+                    Операций пока нет
+                  </p>
                 )}
               </CardContent>
             </Card>

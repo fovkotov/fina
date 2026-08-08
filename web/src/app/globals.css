@@ -256,6 +256,80 @@
     opacity 200ms ease;
 }
 
+/* —— Строка операции: сумма и действия меняются местами —— */
+.tx-row {
+  transition: background-color 160ms ease;
+}
+
+@media (hover: none) {
+  /* На тапскрине строка — цель долгого нажатия, а не текст для выделения. */
+  .tx-row {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+.tx-row[data-pressing="true"],
+.tx-row[data-revealed="true"] {
+  background-color: color-mix(in oklch, var(--muted) 70%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tx-row:hover {
+    background-color: color-mix(in oklch, var(--muted) 70%, transparent);
+  }
+}
+
+/* Сумма и кнопки лежат в одной ячейке — ширина по большему, без скачков. */
+.row-swap {
+  display: grid;
+  justify-items: end;
+}
+
+.row-swap > * {
+  grid-area: 1 / 1;
+}
+
+.row-amount,
+.row-actions {
+  transition:
+    opacity 160ms var(--ease-out),
+    transform 160ms var(--ease-out);
+}
+
+.row-actions {
+  opacity: 0;
+  transform: translateY(3px);
+  pointer-events: none;
+}
+
+.tx-row:focus-within .row-actions,
+.tx-row[data-revealed="true"] .row-actions {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.tx-row:focus-within .row-amount,
+.tx-row[data-revealed="true"] .row-amount {
+  opacity: 0;
+  transform: translateY(-3px);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tx-row:hover .row-actions {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+
+  .tx-row:hover .row-amount {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
 /* —— Selects / inputs —— */
 .field {
   transition:
@@ -280,7 +354,9 @@
   .stagger-item,
   .shake,
   .content-busy,
-  .content-ready {
+  .content-ready,
+  .row-amount,
+  .row-actions {
     animation: none !important;
     transition:
       opacity 160ms ease,
