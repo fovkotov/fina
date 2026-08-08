@@ -114,6 +114,22 @@ export function createTransaction(body: {
   );
 }
 
+export function updateTransaction(
+  id: string,
+  body: {
+    type?: TransactionType;
+    amountCents?: number;
+    note?: string;
+    memberId?: string | null;
+    occurredAt?: string;
+  },
+) {
+  return request<{ transaction: Transaction; summary: Summary }>(
+    `/api/transactions/${id}`,
+    { method: "PATCH", body: JSON.stringify(body) },
+  );
+}
+
 export function deleteTransaction(id: string) {
   return request<{ ok: boolean; summary: Summary }>(`/api/transactions/${id}`, {
     method: "DELETE",

@@ -75,8 +75,7 @@ export function TxComposer({
   return (
     <form
       className="grid max-w-[420px] gap-[9px]"
-      // разряды разделены пробелами, поэтому pattern="[0-9]*" (нужен ради цифровой
-      // клавиатуры в iOS) не должен участвовать в валидации отправки
+      // сумма форматируется пробелами и не проходит pattern="[0-9]*" у поля
       noValidate
       onSubmit={(e) => {
         e.preventDefault();

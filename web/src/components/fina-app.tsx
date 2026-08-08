@@ -14,6 +14,7 @@ import {
   login,
   logout,
   savedMember,
+  updateTransaction,
   type Summary,
   type Transaction,
   type TransactionType,
@@ -34,10 +35,72 @@ import { Badge } from "@/components/ui/badge";
 
 const NAMES = ["Аня", "Андрей"] as const;
 const ACCRUAL_TYPES: TransactionType[] = ["interest", "cashback", "easy_money"];
+const ALL_TYPES = Object.keys(TYPE_LABELS) as TransactionType[];
+const AUTO_REFRESH_MS = 20_000;
 
 function inviteFromUrl() {
   if (typeof window === "undefined") return "FINA26";
   return new URLSearchParams(window.location.search).get("invite") ?? "FINA26";
+}
+
+/** Внесения и списания принадлежат участнику, начисления — общие. */
+function needsMember(type: TransactionType) {
+  return type === "deposit" || type === "withdrawal";
+}
+
+function monthLabel(date: Date) {
+  const label = date.toLocaleDateString("ru-RU", {
+    month: "long",
+    year: "numeric",
+  });
+  return label.charAt(0).toUpperCase() + label.slice(1).replace(/\s*г\.$/, "");
+}
+
+/** Операции по месяцам: свежие сверху, внутри месяца — порядок как пришёл из API. */
+function groupByMonth(list: Transaction[]) {
+  const groups = new Map<
+    string,
+    { key: string; label: string; totalCents: number; items: Transaction[] }
+  >();
+  for (const tx of list) {
+    const date = new Date(tx.occurredAt);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    let group = groups.get(key);
+    if (!group) {
+      group = { key, label: monthLabel(date), totalCents: 0, items: [] };
+      groups.set(key, group);
+    }
+    group.items.push(tx);
+    group.totalCents += tx.type === "withdrawal" ? -tx.amountCents : tx.amountCents;
+  }
+  return [...groups.values()].sort((a, b) => b.key.localeCompare(a.key));
+}
+
+/** Черновик правки одной операции: суммы и даты живут строками, как в полях ввода. */
+type EditDraft = {
+  id: string;
+  type: TransactionType;
+  amount: string;
+  memberId: string;
+  note: string;
+  date: string;
+  occurredAt: string;
+};
+
+function dateInputValue(iso: string) {
+  const d = new Date(iso);
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${month}-${day}`;
+}
+
+/** Меняем в дате только календарный день, время операции остаётся прежним. */
+function withDate(iso: string, value: string) {
+  const [y, m, d] = value.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  const next = new Date(iso);
+  next.setFullYear(y, m - 1, d);
+  return next.toISOString();
 }
 
 export function FinaApp() {
@@ -58,6 +121,11 @@ export function FinaApp() {
   const opTypeSeeded = useRef(false);
   const [shakeError, setShakeError] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [syncedAt, setSyncedAt] = useState<number | null>(null);
+  const [editing, setEditing] = useState<EditDraft | null>(null);
+  /** Пока идёт свой запрос или открыта форма правки, фоновое обновление молчит. */
+  const busyRef = useRef(false);
+  const editingRef = useRef(false);
 
   useEffect(() => {
     bind();
@@ -89,10 +157,12 @@ export function FinaApp() {
   async function refresh() {
     setLoading(true);
     setError(null);
+    busyRef.current = true;
     try {
       const [s, t] = await Promise.all([fetchSummary(), fetchTransactions()]);
       setSummary(s);
       setTransactions(t);
+      setSyncedAt(Date.now());
       seedOpDefaults(s, t);
     } catch (e) {
       flashError(e instanceof Error ? e.message : "Ошибка загрузки");
@@ -101,6 +171,7 @@ export function FinaApp() {
         setLoggedIn(false);
       }
     } finally {
+      busyRef.current = false;
       setLoading(false);
     }
   }
@@ -108,6 +179,108 @@ export function FinaApp() {
   useEffect(() => {
     if (loggedIn) void refresh();
   }, [loggedIn]);
+
+  /**
+   * Фоновое обновление: тикает по таймеру и при возврате на вкладку.
+   * Тихое — без спиннера и баннера ошибки, чтобы не дёргать интерфейс.
+   */
+  useEffect(() => {
+    if (!loggedIn) return;
+
+    async function pull() {
+      if (document.visibilityState !== "visible") return;
+      if (busyRef.current || editingRef.current) return;
+      busyRef.current = true;
+      try {
+        const [s, t] = await Promise.all([fetchSummary(), fetchTransactions()]);
+        setSummary(s);
+        setTransactions(t);
+        setSyncedAt(Date.now());
+      } catch (e) {
+        if (String(e).toLowerCase().includes("unauthorized")) {
+          logout();
+          setLoggedIn(false);
+        }
+      } finally {
+        busyRef.current = false;
+      }
+    }
+
+    const timer = setInterval(() => void pull(), AUTO_REFRESH_MS);
+    const onWake = () => void pull();
+    document.addEventListener("visibilitychange", onWake);
+    window.addEventListener("focus", onWake);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onWake);
+      window.removeEventListener("focus", onWake);
+    };
+  }, [loggedIn]);
+
+  function startEdit(tx: Transaction) {
+    editingRef.current = true;
+    setEditing({
+      id: tx.id,
+      type: tx.type,
+      amount: String(tx.amountCents / 100),
+      memberId: tx.memberId ?? "",
+      note: tx.note ?? "",
+      date: dateInputValue(tx.occurredAt),
+      occurredAt: tx.occurredAt,
+    });
+    sfx("nav");
+  }
+
+  function cancelEdit() {
+    editingRef.current = false;
+    setEditing(null);
+  }
+
+  async function saveEdit(e: FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    const value = Number(editing.amount.replace(",", ".").replace(/\s/g, ""));
+    if (!value || value <= 0) {
+      flashError("Введи сумму");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    busyRef.current = true;
+    try {
+      await updateTransaction(editing.id, {
+        type: editing.type,
+        amountCents: Math.round(value * 100),
+        note: editing.note,
+        memberId: needsMember(editing.type) ? editing.memberId || null : null,
+        occurredAt: withDate(editing.occurredAt, editing.date),
+      });
+      cancelEdit();
+      sfx("success");
+      await refresh();
+    } catch (err) {
+      flashError(err instanceof Error ? err.message : "Не удалось сохранить");
+    } finally {
+      busyRef.current = false;
+      setLoading(false);
+    }
+  }
+
+  async function removeTx(id: string) {
+    setLoading(true);
+    setError(null);
+    busyRef.current = true;
+    try {
+      await deleteTransaction(id);
+      if (editing?.id === id) cancelEdit();
+      await refresh();
+    } catch (err) {
+      flashError(err instanceof Error ? err.message : "Не удалось удалить");
+    } finally {
+      busyRef.current = false;
+      setLoading(false);
+    }
+  }
 
   async function onLogin(e: FormEvent) {
     e.preventDefault();
@@ -133,6 +306,7 @@ export function FinaApp() {
     }
     setLoading(true);
     setError(null);
+    busyRef.current = true;
     try {
       await createTransaction({
         type: opType,
@@ -146,33 +320,7 @@ export function FinaApp() {
     } catch (err) {
       flashError(err instanceof Error ? err.message : "Не удалось сохранить");
     } finally {
-      setLoading(false);
-    }
-  }
-
-  async function onAddAccrual(e: FormEvent) {
-    e.preventDefault();
-    const value = Number(amount.replace(",", ".").replace(/\s/g, ""));
-    if (!value || value <= 0) {
-      flashError("Введи сумму");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      await createTransaction({
-        type: accrualType,
-        amountCents: Math.round(value * 100),
-        note,
-        memberId: null,
-      });
-      setAmount("");
-      setNote("");
-      sfx("success");
-      await refresh();
-    } catch (err) {
-      flashError(err instanceof Error ? err.message : "Не удалось сохранить");
-    } finally {
+      busyRef.current = false;
       setLoading(false);
     }
   }
@@ -181,6 +329,8 @@ export function FinaApp() {
     () => formatMoney(summary?.totalCents ?? 0),
     [summary?.totalCents],
   );
+
+  const months = useMemo(() => groupByMonth(transactions), [transactions]);
 
   if (!loggedIn) {
     return (
@@ -334,56 +484,6 @@ export function FinaApp() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Начисления</CardTitle>
-                <CardDescription>Проценты, кэшбэк, изи мани</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form className="grid gap-3 sm:max-w-sm" onSubmit={onAddAccrual}>
-                  <div className="grid gap-2">
-                    <Label>Тип</Label>
-                    <select
-                      className="field border-input bg-background h-10 rounded-md border px-3 text-sm"
-                      value={accrualType}
-                      onChange={(e) => {
-                        sfx("nav");
-                        setAccrualType(e.target.value as TransactionType);
-                      }}
-                    >
-                      {ACCRUAL_TYPES.map((t) => (
-                        <option key={t} value={t}>
-                          {TYPE_LABELS[t]}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Сумма</Label>
-                    <Input
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      placeholder="1000"
-                      inputMode="decimal"
-                      className="tabular-nums"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Комментарий</Label>
-                    <Input value={note} onChange={(e) => setNote(e.target.value)} />
-                  </div>
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    data-cuelume-press={SFX.primaryPress}
-                  >
-                    <span className={loading ? "content-busy" : "content-ready"}>
-                      Сохранить
-                    </span>
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
           </div>
 
           <div className="grid gap-4">
@@ -405,7 +505,16 @@ export function FinaApp() {
 
             <Card className={loading ? "content-busy" : "content-ready"}>
               <CardHeader className="flex-row items-center justify-between">
-                <CardTitle>Все операции</CardTitle>
+                <div className="grid gap-1">
+                  <CardTitle>Все операции</CardTitle>
+                  <CardDescription>
+                    <TextMorph as="span" locale="ru" duration={200}>
+                      {syncedAt
+                        ? `Обновлено в ${new Date(syncedAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`
+                        : "Обновляем…"}
+                    </TextMorph>
+                  </CardDescription>
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
@@ -415,41 +524,166 @@ export function FinaApp() {
                   Обновить
                 </Button>
               </CardHeader>
-              <CardContent className="grid gap-3">
-                {transactions.map((tx) => (
-                  <div
-                    key={tx.id}
-                    className="stagger-item flex items-start justify-between gap-3 border-b border-border/60 pb-3 last:border-0"
-                  >
-                    <div>
-                      <p className="font-medium">
-                        {tx.memberName ? `${tx.memberName} · ` : ""}
-                        {TYPE_LABELS[tx.type]}
-                      </p>
-                      <p className="text-muted-foreground text-sm">
-                        {tx.note || "—"} · {formatDate(tx.occurredAt)}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <Badge variant={tx.type === "withdrawal" ? "destructive" : "secondary"}>
+              <CardContent className="grid gap-6">
+                {months.map((month) => (
+                  <section key={month.key} className="grid gap-3">
+                    <div className="flex items-baseline justify-between gap-3 border-b pb-2">
+                      <h3 className="font-medium">{month.label}</h3>
+                      <p className="text-muted-foreground text-sm tabular-nums">
                         <TextMorph as="span" locale="ru" duration={200}>
-                          {`${tx.type === "withdrawal" ? "−" : "+"}${formatMoney(tx.amountCents)}`}
+                          {`${month.totalCents < 0 ? "−" : "+"}${formatMoney(Math.abs(month.totalCents))}`}
                         </TextMorph>
-                      </Badge>
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        data-cuelume-press={SFX.remove}
-                        onClick={async () => {
-                          await deleteTransaction(tx.id);
-                          await refresh();
-                        }}
-                      >
-                        Удалить
-                      </Button>
+                      </p>
                     </div>
-                  </div>
+
+                    {month.items.map((tx) =>
+                      editing?.id === tx.id ? (
+                        <form
+                          key={tx.id}
+                          className="grid gap-3 rounded-xl border p-3"
+                          onSubmit={saveEdit}
+                        >
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <div className="grid gap-2">
+                              <Label>Тип</Label>
+                              <select
+                                className="field border-input bg-background h-10 rounded-md border px-3 text-sm"
+                                value={editing.type}
+                                onChange={(e) => {
+                                  sfx("nav");
+                                  setEditing({
+                                    ...editing,
+                                    type: e.target.value as TransactionType,
+                                  });
+                                }}
+                              >
+                                {ALL_TYPES.map((t) => (
+                                  <option key={t} value={t}>
+                                    {TYPE_LABELS[t]}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="grid gap-2">
+                              <Label>Сумма</Label>
+                              <Input
+                                value={editing.amount}
+                                onChange={(e) =>
+                                  setEditing({ ...editing, amount: e.target.value })
+                                }
+                                inputMode="decimal"
+                                className="tabular-nums"
+                                autoFocus
+                              />
+                            </div>
+                            {needsMember(editing.type) && (
+                              <div className="grid gap-2">
+                                <Label>Участник</Label>
+                                <select
+                                  className="field border-input bg-background h-10 rounded-md border px-3 text-sm"
+                                  value={editing.memberId}
+                                  onChange={(e) => {
+                                    sfx("nav");
+                                    setEditing({ ...editing, memberId: e.target.value });
+                                  }}
+                                >
+                                  {(summary?.members ?? []).map((m) => (
+                                    <option key={m.id} value={m.id}>
+                                      {m.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                            <div className="grid gap-2">
+                              <Label>Дата</Label>
+                              <Input
+                                type="date"
+                                value={editing.date}
+                                onChange={(e) =>
+                                  setEditing({ ...editing, date: e.target.value })
+                                }
+                              />
+                            </div>
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Комментарий</Label>
+                            <Input
+                              value={editing.note}
+                              onChange={(e) =>
+                                setEditing({ ...editing, note: e.target.value })
+                              }
+                            />
+                          </div>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              data-cuelume-press={SFX.secondary}
+                              onClick={cancelEdit}
+                            >
+                              Отмена
+                            </Button>
+                            <Button
+                              type="submit"
+                              size="sm"
+                              disabled={loading}
+                              data-cuelume-press={SFX.primaryPress}
+                            >
+                              Сохранить
+                            </Button>
+                          </div>
+                        </form>
+                      ) : (
+                        <div
+                          key={tx.id}
+                          className="stagger-item flex items-start justify-between gap-3 border-b border-border/60 pb-3 last:border-0"
+                        >
+                          <div>
+                            <p className="font-medium">
+                              {tx.memberName ? `${tx.memberName} · ` : ""}
+                              {TYPE_LABELS[tx.type]}
+                            </p>
+                            <p className="text-muted-foreground text-sm">
+                              {tx.note || "—"} · {formatDate(tx.occurredAt)}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <Badge
+                              variant={tx.type === "withdrawal" ? "destructive" : "secondary"}
+                            >
+                              <TextMorph as="span" locale="ru" duration={200}>
+                                {`${tx.type === "withdrawal" ? "−" : "+"}${formatMoney(tx.amountCents)}`}
+                              </TextMorph>
+                            </Badge>
+                            <div className="flex items-center">
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                data-cuelume-press={SFX.secondary}
+                                onClick={() => startEdit(tx)}
+                              >
+                                Изменить
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                data-cuelume-press={SFX.remove}
+                                onClick={() => void removeTx(tx.id)}
+                              >
+                                Удалить
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ),
+                    )}
+                  </section>
                 ))}
+                {!months.length && (
+                  <p className="text-muted-foreground text-sm">Операций пока нет</p>
+                )}
               </CardContent>
             </Card>
           </div>

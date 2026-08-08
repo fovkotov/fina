@@ -30,7 +30,7 @@ function corsHeaders(req: Request, env: Env): Record<string, string> {
     allowed.length === 0 || allowed.includes(origin) ? origin || "*" : allowed[0];
   return {
     "Access-Control-Allow-Origin": allowOrigin,
-    "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "Authorization,Content-Type",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
@@ -193,6 +193,72 @@ async function createTransaction(req: Request, env: Env) {
   );
 }
 
+async function updateTransaction(req: Request, env: Env, id: string) {
+  const { data, auth } = await authorize(req, env);
+  if (!auth) return json(req, env, { error: "Unauthorized" }, 401);
+
+  const tx = data.transactions.find(
+    (t) => t.id === id && t.household_id === auth.session.household_id,
+  );
+  if (!tx) return json(req, env, { error: "Не найдено" }, 404);
+
+  const body = (await req.json()) as {
+    type?: TxType;
+    amountCents?: number;
+    amount?: number;
+    note?: string;
+    memberId?: string | null;
+    occurredAt?: string;
+  };
+
+  if (body.type !== undefined) {
+    if (!TX_TYPES.includes(body.type)) {
+      return json(req, env, { error: "Некорректный type" }, 400);
+    }
+    tx.type = body.type;
+  }
+
+  let amountCents = body.amountCents;
+  if (amountCents == null && body.amount != null) {
+    amountCents = Math.round(Number(body.amount) * 100);
+  }
+  if (amountCents != null) {
+    if (!Number.isFinite(amountCents) || amountCents <= 0) {
+      return json(req, env, { error: "Сумма должна быть больше нуля" }, 400);
+    }
+    tx.amount_cents = Math.round(amountCents);
+  }
+
+  if (body.note !== undefined) tx.note = (body.note ?? "").trim();
+
+  if (body.occurredAt !== undefined) {
+    const date = new Date(body.occurredAt);
+    if (Number.isNaN(date.getTime())) {
+      return json(req, env, { error: "Некорректная дата" }, 400);
+    }
+    tx.occurred_at = date.toISOString();
+  }
+
+  // Участник нужен только внесениям и списаниям; у начислений он всегда пустой.
+  if (tx.type === "deposit" || tx.type === "withdrawal") {
+    const memberId = body.memberId !== undefined ? body.memberId : tx.member_id;
+    const member = data.members.find(
+      (m) => m.id === memberId && m.household_id === auth.session.household_id,
+    );
+    if (!member) return json(req, env, { error: "Участник не найден" }, 400);
+    tx.member_id = member.id;
+  } else {
+    tx.member_id = null;
+  }
+
+  await saveDb(env, data);
+
+  return json(req, env, {
+    transaction: serializeTx(data, tx),
+    summary: getSummary(data, auth.session.household_id),
+  });
+}
+
 async function deleteTransaction(req: Request, env: Env, id: string) {
   const { data, auth } = await authorize(req, env);
   if (!auth) return json(req, env, { error: "Unauthorized" }, 401);
@@ -249,8 +315,10 @@ async function route(req: Request, env: Env): Promise<Response> {
   }
 
   const txMatch = pathname.match(/^\/api\/transactions\/([^/]+)$/);
-  if (txMatch && method === "DELETE") {
-    return deleteTransaction(req, env, decodeURIComponent(txMatch[1]));
+  if (txMatch) {
+    const id = decodeURIComponent(txMatch[1]);
+    if (method === "PATCH") return updateTransaction(req, env, id);
+    if (method === "DELETE") return deleteTransaction(req, env, id);
   }
 
   if (pathname === "/api/share" && method === "GET") {
