@@ -488,9 +488,7 @@ export function FinaApp() {
                 </div>
               </CardContent>
             </Card>
-          </div>
 
-          <div className="grid gap-4">
             <Card>
               <CardContent>
                 <TxComposer
@@ -508,7 +506,9 @@ export function FinaApp() {
                 />
               </CardContent>
             </Card>
+          </div>
 
+          <div className="grid gap-4">
             <Card className={loading ? "content-busy" : "content-ready"}>
               <CardHeader className="flex-row items-center justify-between">
                 <div className="grid gap-1">
