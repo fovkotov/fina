@@ -14,7 +14,6 @@ import {
   login,
   logout,
   savedMember,
-  type Member,
   type Summary,
   type Transaction,
   type TransactionType,
@@ -43,7 +42,6 @@ function inviteFromUrl() {
 }
 
 export function FinaApp() {
-  const [member, setMember] = useState<Member | null>(null);
   const [loggedIn, setLoggedIn] = useState(false);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -66,11 +64,7 @@ export function FinaApp() {
   useEffect(() => {
     bind();
     setInviteCode(inviteFromUrl());
-    const m = savedMember();
-    if (m && localStorage.getItem("token")) {
-      setMember(m);
-      setLoggedIn(true);
-    }
+    if (savedMember() && localStorage.getItem("token")) setLoggedIn(true);
     requestAnimationFrame(() => setMounted(true));
   }, []);
 
@@ -123,7 +117,6 @@ export function FinaApp() {
     setError(null);
     try {
       const data = await login(inviteCode, pin, selectedName);
-      setMember(data.member);
       setSummary(data.summary);
       setLoggedIn(true);
       sfx("success");
@@ -267,15 +260,7 @@ export function FinaApp() {
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_10%_10%,oklch(0.93_0.04_160),transparent_40%),radial-gradient(circle_at_90%_0%,oklch(0.95_0.04_70),transparent_35%),oklch(0.97_0.01_120)]">
       <div className="mx-auto flex max-w-5xl flex-col gap-6 p-4 md:p-8">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="font-heading text-3xl font-semibold tracking-tight">
-              <TextMorph as="span" locale="ru">
-                ФИНА
-              </TextMorph>
-            </h1>
-            <p className="text-muted-foreground text-sm">Ты: {member?.name}</p>
-          </div>
+        <header className="flex flex-wrap items-center justify-end gap-3">
           <Button
             variant="ghost"
             data-cuelume-press={SFX.logout}
