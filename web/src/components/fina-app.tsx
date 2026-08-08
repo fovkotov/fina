@@ -522,18 +522,6 @@ export function FinaApp() {
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-sm">
                   <div className="stagger-item rounded-lg bg-muted/60 p-3">
-                    <p className="text-muted-foreground">Проценты</p>
-                    <TextMorph as="p" locale="ru" duration={240} className="font-medium tabular-nums">
-                      {formatMoney(summary?.interestCents ?? 0)}
-                    </TextMorph>
-                  </div>
-                  <div className="stagger-item rounded-lg bg-muted/60 p-3">
-                    <p className="text-muted-foreground">Кэшбэк</p>
-                    <TextMorph as="p" locale="ru" duration={240} className="font-medium tabular-nums">
-                      {formatMoney(summary?.cashbackCents ?? 0)}
-                    </TextMorph>
-                  </div>
-                  <div className="stagger-item rounded-lg bg-muted/60 p-3">
                     <p className="text-muted-foreground">Изи мани</p>
                     <TextMorph as="p" locale="ru" duration={240} className="font-medium tabular-nums">
                       {formatMoney(summary?.accrualsCents ?? 0)}
