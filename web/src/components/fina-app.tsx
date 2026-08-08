@@ -179,7 +179,6 @@ export function FinaApp() {
       setNote("");
       sfx("success");
       await refresh();
-      setTab("ops");
     } catch (err) {
       flashError(err instanceof Error ? err.message : "Не удалось сохранить");
     } finally {
@@ -311,7 +310,7 @@ export function FinaApp() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="home" className="grid gap-4 md:grid-cols-[1.3fr_1fr]">
+          <TabsContent value="home" className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
             <Card className={loading ? "content-busy" : "content-ready"}>
               <CardHeader>
                 <CardDescription>Всего на счёте</CardDescription>
@@ -364,13 +363,31 @@ export function FinaApp() {
               </CardContent>
             </Card>
 
+            <Card className="self-start">
+              <CardContent>
+                <TxComposer
+                  type={opType}
+                  onTypeChange={setOpType}
+                  members={summary?.members ?? []}
+                  memberId={opMemberId}
+                  onMemberChange={setOpMemberId}
+                  amount={opAmount}
+                  onAmountChange={setOpAmount}
+                  onSubmit={submitOp}
+                  disabled={loading}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="ops" className="grid gap-4">
             <Card>
               <CardHeader>
                 <CardTitle>Начисления</CardTitle>
                 <CardDescription>Проценты, кэшбэк, изи мани</CardDescription>
               </CardHeader>
               <CardContent>
-                <form className="grid gap-3" onSubmit={onAddAccrual}>
+                <form className="grid gap-3 sm:max-w-sm" onSubmit={onAddAccrual}>
                   <div className="grid gap-2">
                     <Label>Тип</Label>
                     <select
@@ -412,24 +429,6 @@ export function FinaApp() {
                     </span>
                   </Button>
                 </form>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="ops" className="grid gap-4">
-            <Card>
-              <CardContent>
-                <TxComposer
-                  type={opType}
-                  onTypeChange={setOpType}
-                  members={summary?.members ?? []}
-                  memberId={opMemberId}
-                  onMemberChange={setOpMemberId}
-                  amount={opAmount}
-                  onAmountChange={setOpAmount}
-                  onSubmit={submitOp}
-                  disabled={loading}
-                />
               </CardContent>
             </Card>
 

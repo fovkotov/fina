@@ -135,7 +135,7 @@ export function TxComposer({
         </button>
       </div>
 
-      <div className="flex items-center gap-[6px] px-[8px]">
+      <div className="flex flex-wrap items-center gap-[6px] px-[8px]">
         {QUICK_AMOUNTS.map((value) => (
           <button
             key={value}
