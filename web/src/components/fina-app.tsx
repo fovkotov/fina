@@ -30,7 +30,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 
 const NAMES = ["Аня", "Андрей"] as const;
@@ -57,7 +56,6 @@ export function FinaApp() {
   const [opAmount, setOpAmount] = useState("");
   const [opMemberId, setOpMemberId] = useState("");
   const opTypeSeeded = useRef(false);
-  const [tab, setTab] = useState("home");
   const [shakeError, setShakeError] = useState(0);
   const [mounted, setMounted] = useState(false);
 
@@ -282,20 +280,8 @@ export function FinaApp() {
           </div>
         )}
 
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList>
-            <TabsTrigger value="home" data-cuelume-press={SFX.nav}>
-              Главная
-            </TabsTrigger>
-            <TabsTrigger value="ops" data-cuelume-press={SFX.nav}>
-              Операции
-            </TabsTrigger>
-            <TabsTrigger value="stats" data-cuelume-press={SFX.nav}>
-              Статистика
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="home" className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
+        <div className="grid items-start gap-4 lg:grid-cols-[1.3fr_1fr]">
+          <div className="grid gap-4">
             <Card className={loading ? "content-busy" : "content-ready"}>
               <CardHeader>
                 <CardDescription>Всего на счёте</CardDescription>
@@ -348,24 +334,6 @@ export function FinaApp() {
               </CardContent>
             </Card>
 
-            <Card className="self-start">
-              <CardContent>
-                <TxComposer
-                  type={opType}
-                  onTypeChange={setOpType}
-                  members={summary?.members ?? []}
-                  memberId={opMemberId}
-                  onMemberChange={setOpMemberId}
-                  amount={opAmount}
-                  onAmountChange={setOpAmount}
-                  onSubmit={submitOp}
-                  disabled={loading}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="ops" className="grid gap-4">
             <Card>
               <CardHeader>
                 <CardTitle>Начисления</CardTitle>
@@ -414,6 +382,24 @@ export function FinaApp() {
                     </span>
                   </Button>
                 </form>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4">
+            <Card>
+              <CardContent>
+                <TxComposer
+                  type={opType}
+                  onTypeChange={setOpType}
+                  members={summary?.members ?? []}
+                  memberId={opMemberId}
+                  onMemberChange={setOpMemberId}
+                  amount={opAmount}
+                  onAmountChange={setOpAmount}
+                  onSubmit={submitOp}
+                  disabled={loading}
+                />
               </CardContent>
             </Card>
 
@@ -466,43 +452,8 @@ export function FinaApp() {
                 ))}
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="stats" className="grid gap-4 sm:grid-cols-2">
-            {(summary?.members ?? []).map((m) => (
-              <Card key={m.id} className="stagger-item">
-                <CardHeader>
-                  <CardDescription>{m.name}</CardDescription>
-                  <CardTitle className="tabular-nums">
-                    <TextMorph as="span" locale="ru" duration={240}>
-                      {formatMoney(m.balanceCents ?? 0)}
-                    </TextMorph>
-                  </CardTitle>
-                </CardHeader>
-              </Card>
-            ))}
-            <Card className="stagger-item">
-              <CardHeader>
-                <CardDescription>Вклады вместе</CardDescription>
-                <CardTitle className="tabular-nums">
-                  <TextMorph as="span" locale="ru" duration={240}>
-                    {formatMoney(summary?.contributionsCents ?? 0)}
-                  </TextMorph>
-                </CardTitle>
-              </CardHeader>
-            </Card>
-            <Card className="stagger-item">
-              <CardHeader>
-                <CardDescription>Проценты + кэшбэк</CardDescription>
-                <CardTitle className="tabular-nums">
-                  <TextMorph as="span" locale="ru" duration={240}>
-                    {formatMoney(summary?.accrualsCents ?? 0)}
-                  </TextMorph>
-                </CardTitle>
-              </CardHeader>
-            </Card>
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import type { Member } from "@/lib/api";
 export type OpType = "deposit" | "withdrawal";
 
 const QUICK_AMOUNTS = [1000, 2000, 5000];
+const OP_TYPES: OpType[] = ["deposit", "withdrawal"];
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
@@ -74,11 +75,34 @@ export function TxComposer({
   return (
     <form
       className="grid max-w-[420px] gap-[9px]"
+      // разряды разделены пробелами, поэтому pattern="[0-9]*" (нужен ради цифровой
+      // клавиатуры в iOS) не должен участвовать в валидации отправки
+      noValidate
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit();
       }}
     >
+      <div className="flex items-center gap-[6px] px-[8px]">
+        {OP_TYPES.map((t) => (
+          <button
+            key={t}
+            type="button"
+            aria-label={t === "deposit" ? "Внесение" : "Списание"}
+            aria-pressed={type === t}
+            className={`pressable segment flex size-[42px] items-center justify-center rounded-full text-[22px] leading-none ${
+              type === t
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground"
+            }`}
+            data-cuelume-press={SFX.nav}
+            onClick={() => onTypeChange(t)}
+          >
+            {t === "deposit" ? "+" : "−"}
+          </button>
+        ))}
+      </div>
+
       <div className="bg-muted flex w-full items-center justify-between gap-3 rounded-[60px] px-[21px] py-[18px]">
         <button
           type="button"
@@ -101,7 +125,12 @@ export function TxComposer({
           value={amount}
           onChange={(e) => onAmountChange(formatAmountInput(e.target.value))}
           placeholder="скока"
+          type="text"
           inputMode="numeric"
+          pattern="[0-9]*"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
           aria-label="Сумма"
           className="placeholder:text-foreground/20 min-w-0 flex-1 bg-transparent text-center text-[22px] tabular-nums outline-none"
         />
