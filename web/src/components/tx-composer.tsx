@@ -63,7 +63,8 @@ export function TxComposer({
   onSubmit,
   disabled,
 }: Props) {
-  const sign = !special && type === "withdrawal" ? "−" : "+";
+  const signType: OpType = special ? "deposit" : type;
+  const sign = signType === "withdrawal" ? "−" : "+";
   const activeMember =
     members.find((m) => m.id === memberId) ?? members[0] ?? null;
   const avatar = activeMember ? AVATARS[activeMember.name] : undefined;
@@ -125,9 +126,9 @@ export function TxComposer({
           }}
         >
           <Image
-            key={special ?? type}
+            key={signType}
             className="swap-in size-[42px]"
-            src={SIGN_IMAGES[special ? "deposit" : type]}
+            src={SIGN_IMAGES[signType]}
             alt=""
             width={42}
             height={42}
@@ -168,8 +169,7 @@ export function TxComposer({
           ) : (
             <span
               key={activeMember?.id}
-              className="swap-in flex size-[42px] items-center justify-center rounded-full text-sm font-medium"
-              style={{ backgroundColor: activeMember?.accent ?? undefined }}
+              className="swap-in bg-secondary text-secondary-foreground flex size-[42px] items-center justify-center rounded-full text-sm font-medium"
             >
               {activeMember?.name.slice(0, 1)}
             </span>

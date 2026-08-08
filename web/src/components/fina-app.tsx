@@ -396,7 +396,7 @@ export function FinaApp() {
 
   if (!loggedIn) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_10%_10%,oklch(0.93_0.04_160),transparent_40%),radial-gradient(circle_at_90%_0%,oklch(0.95_0.04_70),transparent_35%),oklch(0.97_0.01_120)] p-4">
+      <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_10%_10%,oklch(0.94_0_0),transparent_40%),radial-gradient(circle_at_90%_0%,oklch(0.96_0_0),transparent_35%),oklch(0.975_0_0)] p-4">
         <Card
           data-mounted={mounted ? "true" : "false"}
           className={`w-full max-w-md border-border/60 bg-background/80 backdrop-blur ${error ? "shake" : ""}`}
@@ -468,7 +468,7 @@ export function FinaApp() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_10%_10%,oklch(0.93_0.04_160),transparent_40%),radial-gradient(circle_at_90%_0%,oklch(0.95_0.04_70),transparent_35%),oklch(0.97_0.01_120)]">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_10%_10%,oklch(0.94_0_0),transparent_40%),radial-gradient(circle_at_90%_0%,oklch(0.96_0_0),transparent_35%),oklch(0.975_0_0)]">
       <div className="mx-auto flex max-w-5xl flex-col gap-6 p-4 md:p-8">
         {error && (
           <div
