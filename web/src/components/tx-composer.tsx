@@ -4,12 +4,16 @@ import Image from "next/image";
 import { TextMorph } from "torph/react";
 import { Button } from "@/components/ui/button";
 import { SFX } from "@/lib/sounds";
-import type { Member } from "@/lib/api";
+import { TYPE_LABELS, type Member } from "@/lib/api";
 
 export type OpType = "deposit" | "withdrawal";
 
+/** Необычные типы: это начисления, у них нет знака и своего участника. */
+export type SpecialType = "cashback" | "interest";
+
 const QUICK_AMOUNTS = [1000, 2000, 5000];
 const OP_TYPES: OpType[] = ["deposit", "withdrawal"];
+const SPECIAL_TYPES: SpecialType[] = ["cashback", "interest"];
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
@@ -36,6 +40,8 @@ export function formatAmountInput(value: string) {
 type Props = {
   type: OpType;
   onTypeChange: (type: OpType) => void;
+  special: SpecialType | null;
+  onSpecialChange: (special: SpecialType | null) => void;
   members: Member[];
   memberId: string;
   onMemberChange: (memberId: string) => void;
@@ -48,6 +54,8 @@ type Props = {
 export function TxComposer({
   type,
   onTypeChange,
+  special,
+  onSpecialChange,
   members,
   memberId,
   onMemberChange,
@@ -56,7 +64,7 @@ export function TxComposer({
   onSubmit,
   disabled,
 }: Props) {
-  const sign = type === "withdrawal" ? "−" : "+";
+  const sign = !special && type === "withdrawal" ? "−" : "+";
   const activeMember =
     members.find((m) => m.id === memberId) ?? members[0] ?? null;
   const avatar = activeMember ? AVATARS[activeMember.name] : undefined;
@@ -82,20 +90,40 @@ export function TxComposer({
         onSubmit();
       }}
     >
+      <div className="flex flex-wrap items-center gap-[18px] px-[16px]">
+        {SPECIAL_TYPES.map((t) => (
+          <button
+            key={t}
+            type="button"
+            aria-pressed={special === t}
+            className={`pressable py-[4px] text-[20px] leading-none font-medium ${
+              special === t ? "text-foreground" : "text-foreground/48"
+            }`}
+            data-cuelume-press={SFX.nav}
+            onClick={() => onSpecialChange(special === t ? null : t)}
+          >
+            {TYPE_LABELS[t]}
+          </button>
+        ))}
+      </div>
+
       <div className="flex items-center gap-[6px] px-[8px]">
         {OP_TYPES.map((t) => (
           <button
             key={t}
             type="button"
             aria-label={t === "deposit" ? "Внесение" : "Списание"}
-            aria-pressed={type === t}
+            aria-pressed={!special && type === t}
             className={`pressable segment flex size-[42px] items-center justify-center rounded-full text-[22px] leading-none ${
-              type === t
+              !special && type === t
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground"
             }`}
             data-cuelume-press={SFX.nav}
-            onClick={() => onTypeChange(t)}
+            onClick={() => {
+              onSpecialChange(null);
+              onTypeChange(t);
+            }}
           >
             {t === "deposit" ? "+" : "−"}
           </button>
@@ -105,15 +133,25 @@ export function TxComposer({
       <div className="bg-muted flex w-full items-center justify-between gap-3 rounded-[60px] px-[21px] py-[18px]">
         <button
           type="button"
-          aria-label={type === "withdrawal" ? "Списание" : "Внесение"}
+          aria-label={
+            special
+              ? TYPE_LABELS[special]
+              : type === "withdrawal"
+                ? "Списание"
+                : "Внесение"
+          }
           className="pressable size-[42px] shrink-0 overflow-hidden rounded-full"
           data-cuelume-press={SFX.nav}
-          onClick={() => onTypeChange(type === "deposit" ? "withdrawal" : "deposit")}
+          onClick={() => {
+            // у начисления знака нет: первое нажатие возвращает обычную операцию
+            if (special) return onSpecialChange(null);
+            onTypeChange(type === "deposit" ? "withdrawal" : "deposit");
+          }}
         >
           <Image
-            key={type}
+            key={special ?? type}
             className="swap-in size-[42px]"
-            src={SIGN_IMAGES[type]}
+            src={SIGN_IMAGES[special ? "deposit" : type]}
             alt=""
             width={42}
             height={42}
@@ -187,7 +225,11 @@ export function TxComposer({
           className="reveal-up mt-1 justify-self-start rounded-[30px] px-5"
           data-cuelume-press={SFX.primaryPress}
         >
-          {type === "withdrawal" ? "Списать" : "Внести"}
+          {special
+            ? "Начислить"
+            : type === "withdrawal"
+              ? "Списать"
+              : "Внести"}
         </Button>
       )}
     </form>

@@ -26,16 +26,10 @@ struct StatsView: View {
                                 color: FinaTheme.ink
                             )
                             statCard(
-                                title: "Проценты + кэшбэк",
+                                title: "Изи мани",
                                 value: Money.format(summary.accrualsCents),
                                 detail: "\(Money.format(summary.interestCents)) % · \(Money.format(summary.cashbackCents)) кэшбэк",
                                 color: FinaTheme.forest
-                            )
-                            statCard(
-                                title: "Изи мани",
-                                value: Money.format(summary.easyMoneyCents),
-                                detail: "отдельный кусок",
-                                color: FinaTheme.clay
                             )
 
                             let deposits = store.transactions.filter { $0.type == .deposit }.count

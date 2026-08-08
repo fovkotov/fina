@@ -5,7 +5,6 @@ enum TransactionType: String, Codable, CaseIterable, Identifiable {
     case withdrawal
     case interest
     case cashback
-    case easy_money
 
     var id: String { rawValue }
 
@@ -15,7 +14,6 @@ enum TransactionType: String, Codable, CaseIterable, Identifiable {
         case .withdrawal: "Списание"
         case .interest: "Проценты"
         case .cashback: "Кэшбэк"
-        case .easy_money: "Изи мани"
         }
     }
 
@@ -27,7 +25,6 @@ enum TransactionType: String, Codable, CaseIterable, Identifiable {
         case .withdrawal: "arrow.up.circle.fill"
         case .interest: "percent"
         case .cashback: "creditcard.fill"
-        case .easy_money: "sparkles"
         }
     }
 }
@@ -52,7 +49,6 @@ struct Summary: Codable {
     let contributionsCents: Int
     let interestCents: Int
     let cashbackCents: Int
-    let easyMoneyCents: Int
     let accrualsCents: Int
     let members: [Member]
 }

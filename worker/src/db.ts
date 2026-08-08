@@ -1,9 +1,4 @@
-export type TxType =
-  | "deposit"
-  | "withdrawal"
-  | "interest"
-  | "cashback"
-  | "easy_money";
+export type TxType = "deposit" | "withdrawal" | "interest" | "cashback";
 
 export type Household = {
   id: string;
@@ -148,13 +143,11 @@ export function getSummary(data: DbData, householdId: string) {
   let contributions = 0;
   let interest = 0;
   let cashback = 0;
-  let easy = 0;
   for (const t of txs) {
     if (t.type === "deposit") contributions += t.amount_cents;
     else if (t.type === "withdrawal") contributions -= t.amount_cents;
     else if (t.type === "interest") interest += t.amount_cents;
     else if (t.type === "cashback") cashback += t.amount_cents;
-    else if (t.type === "easy_money") easy += t.amount_cents;
   }
 
   const members = data.members
@@ -170,16 +163,17 @@ export function getSummary(data: DbData, householdId: string) {
     })
     .sort((a, b) => a.name.localeCompare(b.name, "ru"));
 
+  // «Изи мани» из таблицы — это не отдельный кошелёк, а всё, что накопилось само:
+  // проценты плюс кешбэк. Складывать её с начислениями нельзя, будет двойной счёт.
   const accrualsCents = interest + cashback;
   return {
     householdId: household.id,
     name: household.name,
     inviteCode: household.invite_code,
-    totalCents: contributions + accrualsCents + easy,
+    totalCents: contributions + accrualsCents,
     contributionsCents: contributions,
     interestCents: interest,
     cashbackCents: cashback,
-    easyMoneyCents: easy,
     accrualsCents,
     members,
   };

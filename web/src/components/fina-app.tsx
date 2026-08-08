@@ -20,7 +20,12 @@ import {
   type TransactionType,
 } from "@/lib/api";
 import { SFX, sfx } from "@/lib/sounds";
-import { TxComposer, digitsOf, type OpType } from "@/components/tx-composer";
+import {
+  TxComposer,
+  digitsOf,
+  type OpType,
+  type SpecialType,
+} from "@/components/tx-composer";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -112,6 +117,7 @@ export function FinaApp() {
   const [pin, setPin] = useState("1425");
   const [selectedName, setSelectedName] = useState<"Аня" | "Андрей">("Андрей");
   const [opType, setOpType] = useState<OpType>("deposit");
+  const [opSpecial, setOpSpecial] = useState<SpecialType | null>(null);
   const [opAmount, setOpAmount] = useState("");
   const [opMemberId, setOpMemberId] = useState("");
   const opTypeSeeded = useRef(false);
@@ -303,15 +309,18 @@ export function FinaApp() {
     setLoading(true);
     setError(null);
     busyRef.current = true;
+    const type = opSpecial ?? opType;
     try {
       await createTransaction({
-        type: opType,
+        type,
         amountCents: value * 100,
         note: "",
-        memberId: opMemberId || null,
+        memberId: needsMember(type) ? opMemberId || null : null,
       });
       setOpAmount("");
-      sfx(opType === "withdrawal" ? "remove" : "success");
+      // необычный тип — разовый выбор, следующая операция снова обычная
+      setOpSpecial(null);
+      sfx(type === "withdrawal" ? "remove" : "success");
       await refresh();
     } catch (err) {
       flashError(err instanceof Error ? err.message : "Не удалось сохранить");
@@ -473,13 +482,12 @@ export function FinaApp() {
                   <div className="stagger-item rounded-lg bg-muted/60 p-3">
                     <p className="text-muted-foreground">Изи мани</p>
                     <TextMorph as="p" locale="ru" duration={240} className="font-medium tabular-nums">
-                      {formatMoney(summary?.easyMoneyCents ?? 0)}
+                      {formatMoney(summary?.accrualsCents ?? 0)}
                     </TextMorph>
                   </div>
                 </div>
               </CardContent>
             </Card>
-
           </div>
 
           <div className="grid gap-4">
@@ -488,6 +496,8 @@ export function FinaApp() {
                 <TxComposer
                   type={opType}
                   onTypeChange={setOpType}
+                  special={opSpecial}
+                  onSpecialChange={setOpSpecial}
                   members={summary?.members ?? []}
                   memberId={opMemberId}
                   onMemberChange={setOpMemberId}

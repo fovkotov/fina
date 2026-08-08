@@ -2,8 +2,7 @@ export type TransactionType =
   | "deposit"
   | "withdrawal"
   | "interest"
-  | "cashback"
-  | "easy_money";
+  | "cashback";
 
 export type Member = {
   id: string;
@@ -20,7 +19,6 @@ export type Summary = {
   contributionsCents: number;
   interestCents: number;
   cashbackCents: number;
-  easyMoneyCents: number;
   accrualsCents: number;
   members: Member[];
 };
@@ -167,5 +165,4 @@ export const TYPE_LABELS: Record<TransactionType, string> = {
   withdrawal: "Списание",
   interest: "Проценты",
   cashback: "Кэшбэк",
-  easy_money: "Изи мани",
 };

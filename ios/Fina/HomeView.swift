@@ -102,7 +102,7 @@ struct HomeView: View {
         return HStack(spacing: 12) {
             bucket("Проценты", Money.format(s?.interestCents ?? 0), "percent")
             bucket("Кэшбэк", Money.format(s?.cashbackCents ?? 0), "creditcard")
-            bucket("Изи мани", Money.format(s?.easyMoneyCents ?? 0), "sparkles")
+            bucket("Изи мани", Money.format(s?.accrualsCents ?? 0), "sparkles")
         }
     }
 

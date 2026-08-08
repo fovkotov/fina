@@ -12,13 +12,7 @@ import {
   type TxType,
 } from "./db";
 
-const TX_TYPES: TxType[] = [
-  "deposit",
-  "withdrawal",
-  "interest",
-  "cashback",
-  "easy_money",
-];
+const TX_TYPES: TxType[] = ["deposit", "withdrawal", "interest", "cashback"];
 
 function corsHeaders(req: Request, env: Env): Record<string, string> {
   const origin = req.headers.get("origin") ?? "";
