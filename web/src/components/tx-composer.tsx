@@ -12,7 +12,6 @@ export type OpType = "deposit" | "withdrawal";
 export type SpecialType = "cashback" | "interest";
 
 const QUICK_AMOUNTS = [1000, 2000, 5000];
-const OP_TYPES: OpType[] = ["deposit", "withdrawal"];
 const SPECIAL_TYPES: SpecialType[] = ["cashback", "interest"];
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
@@ -103,29 +102,6 @@ export function TxComposer({
             onClick={() => onSpecialChange(special === t ? null : t)}
           >
             {TYPE_LABELS[t]}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex items-center gap-[6px] px-[8px]">
-        {OP_TYPES.map((t) => (
-          <button
-            key={t}
-            type="button"
-            aria-label={t === "deposit" ? "Внесение" : "Списание"}
-            aria-pressed={!special && type === t}
-            className={`pressable segment flex size-[42px] items-center justify-center rounded-full text-[22px] leading-none ${
-              !special && type === t
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground"
-            }`}
-            data-cuelume-press={SFX.nav}
-            onClick={() => {
-              onSpecialChange(null);
-              onTypeChange(t);
-            }}
-          >
-            {t === "deposit" ? "+" : "−"}
           </button>
         ))}
       </div>
