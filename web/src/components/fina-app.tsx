@@ -57,6 +57,31 @@ function inviteFromUrl() {
   return new URLSearchParams(window.location.search).get("invite") ?? "FINA26";
 }
 
+/** В приватном Safari localStorage кидается исключением — флаг не стоит того. */
+function readFlag(key: string) {
+  try {
+    return localStorage.getItem(key) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeFlag(key: string, value: boolean) {
+  try {
+    localStorage.setItem(key, value ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
+
+/** `?api=https://...` переключает кабинет на запасной адрес API, `?api=` — сбрасывает. */
+function applyApiFromUrl() {
+  if (typeof window === "undefined") return;
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has("api")) return;
+  setApiBase(params.get("api"));
+}
+
 /** Внесения и списания принадлежат участнику, начисления — общие. */
 function needsMember(type: TransactionType) {
   return type === "deposit" || type === "withdrawal";
@@ -167,9 +192,10 @@ export function FinaApp() {
 
   useEffect(() => {
     bind();
+    applyApiFromUrl();
     setInviteCode(inviteFromUrl());
-    if (savedMember() && localStorage.getItem("token")) setLoggedIn(true);
-    if (localStorage.getItem(HIDE_BALANCES_KEY) === "1") setHideBalances(true);
+    if (savedMember() && savedToken()) setLoggedIn(true);
+    if (readFlag(HIDE_BALANCES_KEY)) setHideBalances(true);
     requestAnimationFrame(() => setMounted(true));
   }, []);
 
@@ -437,7 +463,7 @@ export function FinaApp() {
   function toggleHideBalances() {
     setHideBalances((prev) => {
       const next = !prev;
-      localStorage.setItem(HIDE_BALANCES_KEY, next ? "1" : "0");
+      writeFlag(HIDE_BALANCES_KEY, next);
       return next;
     });
     sfx("nav");

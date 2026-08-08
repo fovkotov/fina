@@ -1,23 +1,13 @@
-node_modules/
-dist/
-data/*.sqlite
-data/*.sqlite-*
 .DS_Store
-DerivedData/
-*.xcuserstate
-.xcodebuildmcp/
-web/dist/
-server/data/
+
+**/node_modules/
 .env
 .env.*
-web/.env.local
-web/.env*.local
-web-vite-old/
-.vercel/
-web/.env*.local
-data/*.sqlite*
-**/node_modules/
+
+# web
 web/.next/
+web/out/
+web/.env*.local
 
 # worker
 worker/node_modules

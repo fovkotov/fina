@@ -2,11 +2,8 @@
   "name": "fina",
   "private": true,
   "scripts": {
-    "server": "npm --prefix server start",
-    "server:dev": "npm --prefix server run dev",
     "web": "npm --prefix web run dev",
     "web:build": "npm --prefix web run build",
-    "seed": "npm --prefix server run seed -- --force",
-    "ios": "cd ios && xcodegen generate"
+    "api": "npm --prefix worker run dev"
   }
 }
