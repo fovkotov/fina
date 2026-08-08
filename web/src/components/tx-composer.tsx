@@ -136,7 +136,8 @@ export function TxComposer({
           autoCorrect="off"
           spellCheck={false}
           aria-label="Сумма"
-          className="placeholder:text-foreground/20 min-w-0 flex-1 bg-transparent text-center text-[22px] tabular-nums outline-none"
+          // w-0: без явной ширины поле держит интринсик ~20 символов и распирает страницу
+          className="placeholder:text-foreground/20 w-0 min-w-0 flex-1 bg-transparent text-center text-[22px] tabular-nums outline-none"
         />
 
         <button

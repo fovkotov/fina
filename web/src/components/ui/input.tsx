@@ -6,7 +6,8 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
     <input
       type={type}
       className={cn(
-        "field border-input bg-background placeholder:text-muted-foreground flex h-10 w-full rounded-md border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50",
+        // text-base на мобилке: от 16px Safari перестаёт зумить страницу при фокусе
+        "field border-input bg-background placeholder:text-muted-foreground flex h-10 w-full rounded-md border px-3 py-2 text-base md:text-sm disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       {...props}

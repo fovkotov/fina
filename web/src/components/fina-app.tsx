@@ -668,7 +668,7 @@ export function FinaApp() {
                             <div className="grid gap-2">
                               <Label>Тип</Label>
                               <select
-                                className="field border-input bg-background h-10 rounded-md border px-3 text-sm"
+                                className="field border-input bg-background h-10 rounded-md border px-3 text-base md:text-sm"
                                 value={editing.type}
                                 onChange={(e) => {
                                   sfx("nav");
@@ -701,7 +701,7 @@ export function FinaApp() {
                               <div className="grid gap-2">
                                 <Label>Участник</Label>
                                 <select
-                                  className="field border-input bg-background h-10 rounded-md border px-3 text-sm"
+                                  className="field border-input bg-background h-10 rounded-md border px-3 text-base md:text-sm"
                                   value={editing.memberId}
                                   onChange={(e) => {
                                     sfx("nav");
@@ -769,7 +769,8 @@ export function FinaApp() {
                           onPointerCancel={cancelLongPress}
                           onPointerLeave={cancelLongPress}
                         >
-                          <div className="min-w-0">
+                          {/* w-0: иначе неразрывный текст строки задаёт min-content всей странице */}
+                          <div className="w-0 min-w-0 flex-1">
                             <p className="truncate text-sm leading-tight font-medium">
                               {TYPE_LABELS[tx.type]}
                               {tx.memberName && (
@@ -849,12 +850,11 @@ export function FinaApp() {
           </div>
           <div className="flex justify-end gap-2">
             <AlertDialogClose
-              render={<Button variant="outline" data-cuelume-press={SFX.secondary} />}
+              render={<Button variant="ghost" data-cuelume-press={SFX.secondary} />}
             >
               Отмена
             </AlertDialogClose>
             <Button
-              variant="destructive"
               data-cuelume-press={SFX.remove}
               onClick={() => {
                 if (pendingDelete) void removeTx(pendingDelete.id);
