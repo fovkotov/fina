@@ -272,12 +272,12 @@
 
 .tx-row[data-pressing="true"],
 .tx-row[data-revealed="true"] {
-  background-color: color-mix(in oklch, var(--muted) 70%, transparent);
+  background-color: color-mix(in srgb, var(--muted) 70%, transparent);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .tx-row:hover {
-    background-color: color-mix(in oklch, var(--muted) 70%, transparent);
+    background-color: color-mix(in srgb, var(--muted) 70%, transparent);
   }
 }
 

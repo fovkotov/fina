@@ -470,19 +470,6 @@ export function FinaApp() {
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_10%_10%,oklch(0.93_0.04_160),transparent_40%),radial-gradient(circle_at_90%_0%,oklch(0.95_0.04_70),transparent_35%),oklch(0.97_0.01_120)]">
       <div className="mx-auto flex max-w-5xl flex-col gap-6 p-4 md:p-8">
-        <header className="flex flex-wrap items-center justify-end gap-3">
-          <Button
-            variant="ghost"
-            data-cuelume-press={SFX.logout}
-            onClick={() => {
-              logout();
-              setLoggedIn(false);
-            }}
-          >
-            Выйти
-          </Button>
-        </header>
-
         {error && (
           <div
             key={`banner-${shakeError}`}
@@ -493,7 +480,7 @@ export function FinaApp() {
         )}
 
         <div className="grid items-start gap-4 lg:grid-cols-[1.3fr_1fr]">
-          <div className="grid gap-4">
+          <div className="grid gap-4 lg:sticky lg:top-8 lg:self-start">
             <Card className={loading ? "content-busy" : "content-ready"}>
               <CardHeader>
                 <CardDescription>Всего на счёте</CardDescription>
@@ -548,6 +535,19 @@ export function FinaApp() {
                 />
               </CardContent>
             </Card>
+
+            <div className="flex">
+              <Button
+                variant="ghost"
+                data-cuelume-press={SFX.logout}
+                onClick={() => {
+                  logout();
+                  setLoggedIn(false);
+                }}
+              >
+                Выйти
+              </Button>
+            </div>
           </div>
 
           <div className="grid gap-4">
