@@ -26,16 +26,18 @@ npm run dev                  # http://localhost:3000
 
 ## Деплой на Vercel
 
-CLI в этой среде ломается на TLS, поэтому:
+Прод уже задеплоен:
 
-1. Открой [vercel.com/new](https://vercel.com/new)
-2. Import GitHub repo `fovkotov/fina`, Root Directory = `web`
-3. Env vars:
-   - `GITHUB_TOKEN` — токен с scope `gist`
-   - `FINA_GIST_ID` = `9ae03be0b8cb1a5a2d1818bd4492c8ea`
-4. Deploy
+- **https://fina-five-sage.vercel.app**
+- Env: `GITHUB_TOKEN`, `FINA_GIST_ID`
 
-После деплоя в iOS → Ещё → API URL вставь `https://your-app.vercel.app`
+Локально из `web/`:
+
+```bash
+vercel --prod
+```
+
+В iOS → Ещё → API URL: `https://fina-five-sage.vercel.app`
 
 ## iOS
 

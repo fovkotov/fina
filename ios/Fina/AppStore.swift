@@ -34,7 +34,7 @@ final class AppStore {
         apiBaseURL =
             UserDefaults.standard.string(forKey: "apiBaseURL")
             ?? (ProcessInfo.processInfo.environment["FINA_API_URL"]
-                ?? "https://chronicles-root-certain-curriculum.trycloudflare.com")
+                ?? "https://fina-five-sage.vercel.app")
     }
 
     func login(inviteCode: String, pin: String, memberName: String) async {
