@@ -34,7 +34,7 @@ final class AppStore {
         apiBaseURL =
             UserDefaults.standard.string(forKey: "apiBaseURL")
             ?? (ProcessInfo.processInfo.environment["FINA_API_URL"]
-                ?? "https://fina-five-sage.vercel.app")
+                ?? "https://fina-api.fovkotov.workers.dev")
     }
 
     func login(inviteCode: String, pin: String, memberName: String) async {

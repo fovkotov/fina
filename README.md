@@ -10,34 +10,43 @@ iOS 26 + веб (Next.js + shadcn) на **одной общей базе**.
 
 ## Архитектура
 
-- `web/` — Next.js App Router, shadcn UI, torph (morph текста), cuelume (звуки)
-- API routes в `web/src/app/api/*`
+- `web/` — Next.js App Router, shadcn UI, torph (morph текста), cuelume (звуки); на прод собирается статикой
+- `worker/` — API на Cloudflare Worker, там же лежит секрет `GITHUB_TOKEN`
 - Общая БД: GitHub Gist (`FINA_GIST_ID` + `GITHUB_TOKEN`)
 - `ios/` — SwiftUI iOS 26, Quick Actions, App Intents, Control Center widgets
 
-## Локальный запуск веба
+## Прод
+
+- Веб: **https://fovkotov.github.io/fina/** (GitHub Pages, workflow `.github/workflows/pages.yml`)
+- API: **https://fina-api.fovkotov.workers.dev**
+- Адрес API для сборки Pages лежит в переменной репозитория `FINA_API_BASE`
+
+## Локальный запуск
+
+API (из `worker/`):
 
 ```bash
-cd web
-cp .env.example .env.local   # вставь GITHUB_TOKEN (gh auth token)
 npm install
-npm run dev                  # http://localhost:3000
+npx wrangler dev             # http://localhost:8787
 ```
 
-## Деплой на Vercel
-
-Прод уже задеплоен:
-
-- **https://fina-five-sage.vercel.app**
-- Env: `GITHUB_TOKEN`, `FINA_GIST_ID`
-
-Локально из `web/`:
+Веб (из `web/`):
 
 ```bash
-vercel --prod
+npm install
+NEXT_PUBLIC_API_BASE=http://localhost:8787 npm run dev   # http://localhost:3000
 ```
 
-В iOS → Ещё → API URL: `https://fina-five-sage.vercel.app`
+## Деплой
+
+```bash
+cd worker && npx wrangler deploy        # API
+git push origin main                    # веб уедет на Pages сам
+```
+
+Секрет обновляется так: `cd worker && npx wrangler secret put GITHUB_TOKEN`.
+
+В iOS → Ещё → API URL: `https://fina-api.fovkotov.workers.dev`
 
 ## iOS
 
