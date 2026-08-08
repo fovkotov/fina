@@ -55,7 +55,7 @@ open Fina.xcodeproj
 
 ## TestFlight
 
-Нужен платный Apple Developer Program + App Store Connect. Приложение собрано под team `9UNXMK8UZ7` (Development). Для TestFlight:
+Сейчас аккаунт — **Personal Team** (`KTU66V4H4X`). TestFlight на бесплатном Personal Team недоступен — нужен платный Apple Developer Program ($99). После оплаты:
 
 1. Создай App ID `com.fina.app` в developer.apple.com
 2. Создай приложение в App Store Connect
