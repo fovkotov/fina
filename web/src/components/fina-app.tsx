@@ -428,7 +428,7 @@ export function FinaApp() {
 
   if (!loggedIn) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_10%_10%,oklch(0.94_0_0),transparent_40%),radial-gradient(circle_at_90%_0%,oklch(0.96_0_0),transparent_35%),oklch(0.975_0_0)] p-4">
+      <div className="auth-bg flex min-h-screen items-center justify-center p-4">
         <Card
           data-mounted={mounted ? "true" : "false"}
           className={`w-full max-w-md border-border/60 bg-background/80 backdrop-blur ${error ? "shake" : ""}`}

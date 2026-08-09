@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:is(.dark *));
+/* Переключателя темы нет — вариант dark: идёт за системной настройкой,
+   ровно как и тёмные значения токенов ниже. */
+@custom-variant dark (@media (prefers-color-scheme: dark));
 
 @theme inline {
   --color-background: var(--background);
@@ -34,6 +36,9 @@
 }
 
 :root {
+  /* Нативные контролы (select, input[type=date], скроллбары) красятся браузером,
+     а не токенами — без color-scheme в тёмной теме они остаются белыми. */
+  color-scheme: light;
   --background: oklch(0.985 0 0);
   --foreground: oklch(0.2 0 0);
   --card: oklch(1 0 0 / 0.82);
@@ -44,7 +49,8 @@
   --primary-foreground: oklch(0.98 0 0);
   --secondary: oklch(0.95 0 0);
   --secondary-foreground: oklch(0.28 0 0);
-  --muted: oklch(0.95 0 0);
+  /* Хекс, а не oklch: по макету плашки композера — ровно #f5f5f5. */
+  --muted: #f5f5f5;
   --muted-foreground: oklch(0.5 0 0);
   --accent: oklch(0.93 0 0);
   --accent-foreground: oklch(0.28 0 0);
@@ -52,12 +58,51 @@
   --border: oklch(0.9 0 0);
   --input: oklch(0.9 0 0);
   --ring: oklch(0.45 0 0);
+  /* Подложка модалок: своим токеном, потому что от --foreground она в тёмной
+     теме получилась бы светлой. */
+  --scrim: oklch(0.2 0 0 / 0.2);
+  /* Блики на экране входа — тоже токенами, иначе градиент не темнеет. */
+  --auth-base: oklch(0.975 0 0);
+  --auth-glow-1: oklch(0.94 0 0);
+  --auth-glow-2: oklch(0.96 0 0);
   --radius: 0.75rem;
   /* Поле композера задаёт ширину всей левой колонки. */
   --composer-field: 420px;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Тёмная палитра — тот же нейтральный серый без синевы: фон около oklch(0.18),
+   поверхности на пару пунктов светлее, текст около oklch(0.95). */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --background: oklch(0.18 0 0);
+    --foreground: oklch(0.95 0 0);
+    --card: oklch(0.23 0 0 / 0.82);
+    --card-foreground: oklch(0.95 0 0);
+    --popover: oklch(0.23 0 0);
+    --popover-foreground: oklch(0.95 0 0);
+    /* Заливка кнопок инвертируется: светлая плашка с тёмным текстом. */
+    --primary: oklch(0.92 0 0);
+    --primary-foreground: oklch(0.2 0 0);
+    --secondary: oklch(0.26 0 0);
+    --secondary-foreground: oklch(0.93 0 0);
+    --muted: oklch(0.235 0 0);
+    --muted-foreground: oklch(0.68 0 0);
+    --accent: oklch(0.28 0 0);
+    --accent-foreground: oklch(0.93 0 0);
+    /* Как и в светлой теме, «опасное» — это серый, только светлее фона. */
+    --destructive: oklch(0.72 0 0);
+    --border: oklch(0.28 0 0);
+    --input: oklch(0.32 0 0);
+    --ring: oklch(0.7 0 0);
+    --scrim: oklch(0.12 0 0 / 0.6);
+    --auth-base: oklch(0.15 0 0);
+    --auth-glow-1: oklch(0.24 0 0);
+    --auth-glow-2: oklch(0.21 0 0);
+  }
 }
 
 @layer base {
@@ -67,6 +112,14 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* —— Экран входа: два блика по углам —— */
+.auth-bg {
+  background-color: var(--auth-base);
+  background-image:
+    radial-gradient(circle at 10% 10%, var(--auth-glow-1), transparent 40%),
+    radial-gradient(circle at 90% 0%, var(--auth-glow-2), transparent 35%);
 }
 
 /* —— Press / tap feedback (Emil: 100–160ms, scale 0.97, ease-out) —— */
@@ -337,7 +390,7 @@
   position: fixed;
   inset: 0;
   min-height: 100dvh;
-  background-color: color-mix(in srgb, var(--foreground) 20%, transparent);
+  background-color: var(--scrim);
   backdrop-filter: blur(2px);
   transition: opacity 200ms var(--ease-out);
 }
