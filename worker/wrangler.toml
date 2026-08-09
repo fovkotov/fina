@@ -2,6 +2,11 @@ name = "fina-api"
 main = "src/index.ts"
 compatibility_date = "2025-06-01"
 
+# Свой домен вместо workers.dev: тот у российских операторов режется по SNI.
+# Старый адрес оставлен запасным — он ещё работает на домашнем интернете.
+routes = [{ pattern = "api.fovkotov.lol", custom_domain = true }]
+workers_dev = true
+
 # GITHUB_TOKEN живёт в секретах: npx wrangler secret put GITHUB_TOKEN
 [vars]
 FINA_GIST_ID = "9ae03be0b8cb1a5a2d1818bd4492c8ea"

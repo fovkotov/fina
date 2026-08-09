@@ -17,38 +17,26 @@
 ## Прод
 
 - Веб: **https://fovkotov.github.io/fina/** (GitHub Pages, workflow `.github/workflows/pages.yml`)
-- API: **https://fina-api.fovkotov.workers.dev**
+- API: **https://api.fovkotov.lol** (запасной адрес — https://fina-api.fovkotov.workers.dev)
 - Адрес API для сборки Pages лежит в переменной репозитория `FINA_API_BASE`
 
-### `workers.dev` не открывается с мобильного интернета
+### Почему API не на `workers.dev`
 
-Российские операторы режут `*.workers.dev` по SNI: сайт с Pages грузится, а любой
-запрос к API падает с `Load failed`. Лечится только переездом воркера на свой домен.
+Российские операторы режут `*.workers.dev` по SNI: сайт с Pages грузится, а запрос
+к API падает с `Load failed` — на домашнем Wi-Fi всё работает, с мобильного нет.
+Поэтому воркер отвечает на своём домене `api.fovkotov.lol` (зона `fovkotov.lol`
+делегирована на Cloudflare, регистрация осталась в REG.RU).
 
-1. Взять домен. Из России практичнее всего `.ru` у местного регистратора за рубли
- (Cloudflare Registrar российскую карту не примет). Бесплатный вариант —
- `что-нибудь.eu.org`: зона есть в Public Suffix List, поэтому Cloudflare берёт её
- на Free-тариф, но регистрацию модерируют вручную и ждать можно неделями.
- Домен нужно делегировать на NS Cloudflare — сам Cloudflare Free карту не просит.
-2. В `worker/wrangler.toml` добавить кастомный домен:
+Записи личного сайта в этой зоне стоят серыми (DNS only) — он как жил на GitHub
+Pages, так и живёт. Старый адрес `workers.dev` оставлен включённым запасным.
 
- ```toml
- routes = [{ pattern = "api.example.ru", custom_domain = true }]
- ```
+Если однажды понадобится сменить адрес API: поправить `routes` в
+`worker/wrangler.toml`, задеплоить воркер, затем
+`gh variable set FINA_API_BASE --body https://новый-адрес` и `gh workflow run pages.yml`.
 
-3. `cd worker && npx wrangler deploy` — сертификат Cloudflare выпустит сам,
- несколько минут.
-4. Добавить новый origin в `ALLOWED_ORIGINS`, если фронт переедет следом.
-5. Переменную репозитория `FINA_API_BASE` переставить на `https://api.example.ru`
- (`gh variable set FINA_API_BASE --body https://api.example.ru`) и перезапустить
- Pages: `gh workflow run pages.yml`.
-
-Старый адрес продолжает работать, так что переезд ничего не ломает. Проверить
-доступность нового: открыть `/api/health` с телефона по мобильному интернету.
-
-Пока домена нет, кабинет можно на лету перевести на любой запасной адрес API:
-открыть `https://fovkotov.github.io/fina/?api=https://…` — адрес запомнится
-в браузере. `?api=` без значения возвращает всё обратно.
+Кабинет умеет переключаться на другой API и без пересборки: открыть
+`https://fovkotov.github.io/fina/?api=https://…` — адрес запомнится в браузере,
+`?api=` без значения возвращает всё обратно.
 
 ## Локальный запуск
 
