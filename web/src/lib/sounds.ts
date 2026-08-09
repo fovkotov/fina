@@ -21,6 +21,8 @@ export const SFX = {
   error: "error" as const,
   /** Старт загрузки по кнопке */
   loading: "loading" as const,
+  /** Отпускание кнопки — верхняя половина пары к любому press-звуку */
+  release: "release" as const,
 } satisfies Record<string, SoundName>;
 
 export function sfx(name: keyof typeof SFX) {

@@ -80,7 +80,7 @@ export function TxComposer({
         onSubmit();
       }}
     >
-      <div className="flex flex-wrap items-center gap-[6px] px-[8px]">
+      <div className="flex flex-wrap items-center gap-[6px]">
         {SPECIAL_TYPES.map((t) => (
           <button
             key={t}
@@ -97,6 +97,7 @@ export function TxComposer({
                 : "bg-muted text-muted-foreground"
             }`}
             data-cuelume-press={SFX.nav}
+            data-cuelume-release={SFX.release}
             onClick={() => onSpecialChange(special === t ? null : t)}
           >
             {TYPE_LABELS[t]}
@@ -122,6 +123,7 @@ export function TxComposer({
           /* Без круглой маски: у знака руки и ноги доходят до краёв картинки. */
           className="pressable size-[42px] shrink-0"
           data-cuelume-press={SFX.nav}
+          data-cuelume-release={SFX.release}
           onClick={() => {
             // у начисления знака нет: первое нажатие возвращает обычную операцию
             if (special) return onSpecialChange(null);
@@ -160,6 +162,7 @@ export function TxComposer({
           title={activeMember?.name ?? undefined}
           className="pressable size-[42px] shrink-0 overflow-hidden rounded-full"
           data-cuelume-press={SFX.nav}
+          data-cuelume-release={SFX.release}
           onClick={nextMember}
         >
           {avatar ? (
@@ -183,13 +186,14 @@ export function TxComposer({
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-[6px] px-[8px]">
+      <div className="flex flex-wrap items-center gap-[6px]">
         {QUICK_AMOUNTS.map((value) => (
           <button
             key={value}
             type="button"
             className="pressable bg-muted text-muted-foreground flex w-[90px] items-center justify-center rounded-[30px] px-[15px] py-[8px] text-[16px] font-medium tabular-nums"
             data-cuelume-press={SFX.nav}
+            data-cuelume-release={SFX.release}
             onClick={() => applyQuick(value)}
           >
             <TextMorph as="span" locale="ru" duration={220}>
