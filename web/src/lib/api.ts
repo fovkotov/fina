@@ -236,6 +236,14 @@ export function formatDate(iso: string) {
   });
 }
 
+/** Для списка операций: год там задают заголовки, в строке он лишний. */
+export function formatDayMonth(iso: string) {
+  return new Date(iso).toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
 export const TYPE_LABELS: Record<TransactionType, string> = {
   deposit: "Внесение",
   withdrawal: "Списание",

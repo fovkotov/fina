@@ -11,6 +11,7 @@ import {
   fetchSummary,
   fetchTransactions,
   formatDate,
+  formatDayMonth,
   formatMoney,
   login,
   logout,
@@ -86,12 +87,10 @@ function needsMember(type: TransactionType) {
   return type === "deposit" || type === "withdrawal";
 }
 
+/** Год в заголовке не пишем — его отбивает отдельная линия при смене. */
 function monthLabel(date: Date) {
-  const label = date.toLocaleDateString("ru-RU", {
-    month: "long",
-    year: "numeric",
-  });
-  return label.charAt(0).toUpperCase() + label.slice(1).replace(/\s*г\.$/, "");
+  const label = date.toLocaleDateString("ru-RU", { month: "long" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 /**
@@ -130,7 +129,12 @@ function groupByMonth(list: Transaction[]) {
     group.items.push(tx);
     group.totalCents += tx.type === "withdrawal" ? -tx.amountCents : tx.amountCents;
   }
-  return [...groups.values()].sort((a, b) => b.key.localeCompare(a.key));
+  const sorted = [...groups.values()].sort((a, b) => b.key.localeCompare(a.key));
+  /** Год пишем один раз — на границе, где список уходит в предыдущий. */
+  return sorted.map((group, i) => {
+    const year = group.key.slice(0, 4);
+    return { ...group, year, showYear: i > 0 && year !== sorted[i - 1].key.slice(0, 4) };
+  });
 }
 
 /** Черновик правки одной операции: суммы и даты живут строками, как в полях ввода. */
@@ -603,10 +607,17 @@ export function FinaApp() {
                  отступ заголовка: липкий заголовок держится до последней
                  строки месяца, и следующий выталкивает его без зазора. */
               <section key={month.key} className="space-y-1">
+                {month.showYear && (
+                  <div className="text-muted-foreground flex items-center gap-3 pt-6 text-xs font-medium tabular-nums">
+                    <span className="border-border/70 flex-1 border-t" />
+                    {month.year}
+                    <span className="border-border/70 flex-1 border-t" />
+                  </div>
+                )}
                 {/* Первому заголовку верхний отступ не нужен: список и так
-                    начинается с него. */}
+                    начинается с него, а после линии года хватает короткого. */}
                 <div
-                  className={`border-border/70 bg-background sticky top-0 z-10 flex items-baseline justify-between gap-3 border-b pb-1.5 ${i === 0 ? "pt-0" : "pt-5"}`}
+                  className={`border-border/70 bg-background sticky top-0 z-10 flex items-baseline justify-between gap-3 border-b pb-1.5 ${i === 0 ? "pt-0" : month.showYear ? "pt-2" : "pt-5"}`}
                 >
                   <h3 className="text-muted-foreground text-xs font-medium">
                     {month.label}
@@ -745,7 +756,7 @@ export function FinaApp() {
                         <p className="text-muted-foreground mt-1 truncate text-xs leading-tight">
                           {[
                             noteWithoutMonth(tx.note, tx.occurredAt),
-                            formatDate(tx.occurredAt),
+                            formatDayMonth(tx.occurredAt),
                           ]
                             .filter(Boolean)
                             .join(" · ")}
