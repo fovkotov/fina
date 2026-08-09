@@ -79,14 +79,17 @@ export function TxComposer({
         onSubmit();
       }}
     >
-      <div className="flex flex-wrap items-center gap-[18px] px-[16px]">
+      <div className="flex flex-wrap items-center gap-[6px] px-[8px]">
         {SPECIAL_TYPES.map((t) => (
           <button
             key={t}
             type="button"
             aria-pressed={special === t}
-            className={`pressable py-[4px] text-[20px] leading-none font-medium ${
-              special === t ? "text-foreground" : "text-foreground/48"
+            /* Тот же чип, что у быстрых сумм снизу; выбранный — в акценте. */
+            className={`pressable flex items-center justify-center rounded-[30px] px-[15px] py-[8px] text-[16px] font-medium ${
+              special === t
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground"
             }`}
             data-cuelume-press={SFX.nav}
             onClick={() => onSpecialChange(special === t ? null : t)}
