@@ -567,10 +567,9 @@ export function FinaApp() {
               </div>
             </section>
 
-            {/* Карточек больше нет — блоки делит линия: на телефоне по 64px
-                воздуха с каждой стороны (16 из gap колонки плюс mt-12),
-                на десктопе — прежние 32px. */}
-            <section className="border-border/70 mt-12 border-t pt-16 lg:mt-4 lg:pt-8">
+            {/* Карточек больше нет — блоки делит линия: по 32px воздуха с каждой
+                стороны (сверху 16 из gap колонки плюс mt-4). */}
+            <section className="border-border/70 mt-4 border-t pt-8">
               <TxComposer
                 type={opType}
                 onTypeChange={setOpType}
@@ -590,7 +589,7 @@ export function FinaApp() {
           {/* Одной колонкой список идёт под композером — там его отделяет
               такая же линия, как левые блоки друг от друга. */}
           <div
-            className={`border-border/70 mt-12 border-t pt-16 lg:mt-0 lg:border-t-0 lg:pt-0 ${loading ? "content-busy" : "content-ready"}`}
+            className={`border-border/70 mt-4 border-t pt-8 lg:mt-0 lg:border-t-0 lg:pt-0 ${loading ? "content-busy" : "content-ready"}`}
           >
             {months.map((month, i) => (
               /* Секции идут вплотную, воздух между месяцами даёт верхний
