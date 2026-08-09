@@ -99,7 +99,8 @@ export function TxComposer({
         ))}
       </div>
 
-      <div className="bg-muted flex w-full items-center justify-between gap-3 rounded-[60px] px-[21px] py-[18px]">
+      {/* Отступы по макету: иконки 42px вписаны с inset 16px, высота поля — 74px. */}
+      <div className="bg-muted flex w-full items-center justify-between gap-3 rounded-[60px] p-[16px]">
         <button
           type="button"
           aria-label={
