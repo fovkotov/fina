@@ -110,7 +110,8 @@ export function TxComposer({
                 ? "Списание"
                 : "Внесение"
           }
-          className="pressable size-[42px] shrink-0 overflow-hidden rounded-full"
+          /* Без круглой маски: у знака руки и ноги доходят до краёв картинки. */
+          className="pressable size-[42px] shrink-0"
           data-cuelume-press={SFX.nav}
           onClick={() => {
             // у начисления знака нет: первое нажатие возвращает обычную операцию
