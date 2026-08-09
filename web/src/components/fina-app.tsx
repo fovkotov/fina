@@ -538,8 +538,8 @@ export function FinaApp() {
                   </Button>
                 </div>
               </div>
-              {/* 32px до крупной суммы: 16 из gap секции плюс свои 16. */}
-              <div className="mt-4 grid grid-cols-2 gap-3">
+              {/* 24px до крупной суммы: 16 из gap секции плюс свои 8. */}
+              <div className="mt-2 grid grid-cols-2 gap-3">
                 {(summary?.members ?? []).map((m, i) => (
                   <div
                     key={m.id}
