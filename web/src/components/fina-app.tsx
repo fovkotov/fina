@@ -591,7 +591,13 @@ export function FinaApp() {
           </div>
 
           <div className="grid gap-4">
-            <Card className={loading ? "content-busy" : "content-ready"}>
+            {/* pt-0: воздух над первым месяцем даёт сам заголовок, иначе он
+                складывается с падингом карточки. overflow-clip обрезает
+                подложку заголовка по скруглению — именно clip, а не hidden:
+                hidden сделал бы карточку скролл-контейнером и убил sticky. */}
+            <Card
+              className={`overflow-clip pt-0 ${loading ? "content-busy" : "content-ready"}`}
+            >
               <CardContent>
                 {months.map((month) => (
                   /* Секции идут вплотную, воздух между месяцами даёт верхний
