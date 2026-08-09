@@ -496,7 +496,9 @@ export function FinaApp() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_10%_10%,oklch(0.94_0_0),transparent_40%),radial-gradient(circle_at_90%_0%,oklch(0.96_0_0),transparent_35%),oklch(0.975_0_0)]">
+    /* Фон кабинета ровный: карточек нет, зато липкий заголовок месяца может
+       перекрывать строки непрозрачной подложкой того же цвета. */
+    <div className="bg-background min-h-screen">
       <div className="mx-auto flex max-w-5xl flex-col gap-6 p-4 md:p-8">
         {error && (
           <div
@@ -507,12 +509,14 @@ export function FinaApp() {
           </div>
         )}
 
-        <div className="grid items-start gap-4 lg:grid-cols-[var(--composer-column)_minmax(0,1fr)]">
+        <div className="grid items-start gap-4 lg:grid-cols-[var(--composer-field)_minmax(0,1fr)]">
           <div className="grid gap-4 lg:sticky lg:top-8 lg:self-start">
-            <Card className={loading ? "content-busy" : "content-ready"}>
-              <CardHeader>
-                <CardDescription>Всего на счёте</CardDescription>
-                <CardTitle className="font-heading flex items-center gap-2 text-4xl md:gap-3 md:text-5xl tabular-nums">
+            <section
+              className={`surface-enter grid gap-4 ${loading ? "content-busy" : "content-ready"}`}
+            >
+              <div className="grid gap-1.5">
+                <p className="text-muted-foreground text-sm">Всего на счёте</p>
+                <div className="font-heading flex items-center gap-2 text-4xl leading-none font-semibold md:gap-3 md:text-5xl tabular-nums">
                   <TextMorph as="span" locale="ru" duration={280}>
                     {totalLabel}
                   </TextMorph>
@@ -528,55 +532,52 @@ export function FinaApp() {
                   >
                     {hideBalances ? <EyeOff /> : <Eye />}
                   </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-4">
-                <div className="grid grid-cols-2 gap-3">
-                  {(summary?.members ?? []).map((m, i) => (
-                    <div
-                      key={m.id}
-                      className="stagger-item bg-muted/60 rounded-xl p-3 sm:p-4"
-                      style={{ animationDelay: `${i * 40}ms` }}
-                    >
-                      <p className="text-muted-foreground text-xs sm:text-sm">{m.name}</p>
-                      {/* Баланс длинный, а плитка на телефоне — половина экрана:
-                          кегль тянется за шириной вьюпорта и упирается в 20px. */}
-                      <p className="text-[clamp(0.75rem,4vw,1.25rem)] font-semibold tabular-nums">
-                        <TextMorph as="span" locale="ru" duration={240}>
-                          {moneyLabel(m.balanceCents ?? 0)}
-                        </TextMorph>
-                      </p>
-                    </div>
-                  ))}
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-[clamp(0.75rem,3.4vw,0.875rem)]">
-                  <div className="stagger-item rounded-lg bg-muted/60 p-3">
-                    <p className="text-muted-foreground">Изи мани</p>
-                    <TextMorph as="p" locale="ru" duration={240} className="font-medium tabular-nums">
-                      {moneyLabel(summary?.accrualsCents ?? 0)}
-                    </TextMorph>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {(summary?.members ?? []).map((m, i) => (
+                  <div
+                    key={m.id}
+                    className="stagger-item bg-muted/60 rounded-xl p-3 sm:p-4"
+                    style={{ animationDelay: `${i * 40}ms` }}
+                  >
+                    <p className="text-muted-foreground text-xs sm:text-sm">{m.name}</p>
+                    {/* Баланс длинный, а плитка на телефоне — половина экрана:
+                        кегль тянется за шириной вьюпорта и упирается в 20px. */}
+                    <p className="text-[clamp(0.75rem,4vw,1.25rem)] font-semibold tabular-nums">
+                      <TextMorph as="span" locale="ru" duration={240}>
+                        {moneyLabel(m.balanceCents ?? 0)}
+                      </TextMorph>
+                    </p>
                   </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-[clamp(0.75rem,3.4vw,0.875rem)]">
+                <div className="stagger-item rounded-lg bg-muted/60 p-3">
+                  <p className="text-muted-foreground">Изи мани</p>
+                  <TextMorph as="p" locale="ru" duration={240} className="font-medium tabular-nums">
+                    {moneyLabel(summary?.accrualsCents ?? 0)}
+                  </TextMorph>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </section>
 
-            <Card>
-              <CardContent>
-                <TxComposer
-                  type={opType}
-                  onTypeChange={setOpType}
-                  special={opSpecial}
-                  onSpecialChange={setOpSpecial}
-                  members={summary?.members ?? []}
-                  memberId={opMemberId}
-                  onMemberChange={setOpMemberId}
-                  amount={opAmount}
-                  onAmountChange={setOpAmount}
-                  onSubmit={submitOp}
-                  disabled={loading}
-                />
-              </CardContent>
-            </Card>
+            {/* Карточек больше нет — блоки делит линия. */}
+            <section className="border-border/70 border-t pt-4">
+              <TxComposer
+                type={opType}
+                onTypeChange={setOpType}
+                special={opSpecial}
+                onSpecialChange={setOpSpecial}
+                members={summary?.members ?? []}
+                memberId={opMemberId}
+                onMemberChange={setOpMemberId}
+                amount={opAmount}
+                onAmountChange={setOpAmount}
+                onSubmit={submitOp}
+                disabled={loading}
+              />
+            </section>
 
             <div className="flex">
               <Button
@@ -592,204 +593,202 @@ export function FinaApp() {
             </div>
           </div>
 
-          <div className="grid gap-4">
-            {/* pt-0: воздух над первым месяцем даёт сам заголовок, иначе он
-                складывается с падингом карточки. overflow-clip обрезает
-                подложку заголовка по скруглению — именно clip, а не hidden:
-                hidden сделал бы карточку скролл-контейнером и убил sticky. */}
-            <Card
-              className={`overflow-clip pt-0 ${loading ? "content-busy" : "content-ready"}`}
-            >
-              <CardContent>
-                {months.map((month) => (
-                  /* Секции идут вплотную, воздух между месяцами даёт верхний
-                     отступ заголовка: липкий заголовок держится до последней
-                     строки месяца, и следующий выталкивает его без зазора. */
-                  <section key={month.key} className="space-y-1">
-                    <div className="border-border/70 bg-card sticky top-0 z-10 -mx-5 flex items-baseline justify-between gap-3 border-b px-5 pt-5 pb-1.5 backdrop-blur-sm">
-                      <h3 className="text-muted-foreground text-xs font-medium">
-                        {month.label}
-                      </h3>
-                      <p
-                        className={`text-xs font-medium tabular-nums ${month.totalCents < 0 ? "text-destructive/80" : "text-muted-foreground"}`}
-                      >
-                        <TextMorph as="span" locale="ru" duration={200}>
-                          {`${month.totalCents < 0 ? "−" : "+"}${formatMoney(Math.abs(month.totalCents))}`}
-                        </TextMorph>
-                      </p>
-                    </div>
-
-                    {month.items.map((tx) =>
-                      editing?.id === tx.id ? (
-                        <form
-                          key={tx.id}
-                          className="bg-muted/30 my-1 grid gap-3 rounded-xl border p-3"
-                          onSubmit={saveEdit}
-                        >
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            <div className="grid gap-2">
-                              <Label>Тип</Label>
-                              <select
-                                className="field border-input bg-background h-10 rounded-md border px-3 text-base md:text-sm"
-                                value={editing.type}
-                                onChange={(e) => {
-                                  sfx("nav");
-                                  setEditing({
-                                    ...editing,
-                                    type: e.target.value as TransactionType,
-                                  });
-                                }}
-                              >
-                                {ALL_TYPES.map((t) => (
-                                  <option key={t} value={t}>
-                                    {TYPE_LABELS[t]}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div className="grid gap-2">
-                              <Label>Сумма</Label>
-                              <Input
-                                value={editing.amount}
-                                onChange={(e) =>
-                                  setEditing({ ...editing, amount: e.target.value })
-                                }
-                                inputMode="decimal"
-                                className="tabular-nums"
-                                autoFocus
-                              />
-                            </div>
-                            {needsMember(editing.type) && (
-                              <div className="grid gap-2">
-                                <Label>Участник</Label>
-                                <select
-                                  className="field border-input bg-background h-10 rounded-md border px-3 text-base md:text-sm"
-                                  value={editing.memberId}
-                                  onChange={(e) => {
-                                    sfx("nav");
-                                    setEditing({ ...editing, memberId: e.target.value });
-                                  }}
-                                >
-                                  {(summary?.members ?? []).map((m) => (
-                                    <option key={m.id} value={m.id}>
-                                      {m.name}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            )}
-                            <div className="grid gap-2">
-                              <Label>Дата</Label>
-                              <Input
-                                type="date"
-                                value={editing.date}
-                                onChange={(e) =>
-                                  setEditing({ ...editing, date: e.target.value })
-                                }
-                              />
-                            </div>
-                          </div>
-                          <div className="grid gap-2">
-                            <Label>Комментарий</Label>
-                            <Input
-                              value={editing.note}
-                              onChange={(e) =>
-                                setEditing({ ...editing, note: e.target.value })
-                              }
-                            />
-                          </div>
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              data-cuelume-press={SFX.secondary}
-                              onClick={cancelEdit}
-                            >
-                              Отмена
-                            </Button>
-                            <Button
-                              type="submit"
-                              size="sm"
-                              disabled={loading}
-                              data-cuelume-press={SFX.primaryPress}
-                            >
-                              Сохранить
-                            </Button>
-                          </div>
-                        </form>
-                      ) : (
-                        <div
-                          key={tx.id}
-                          data-row-id={tx.id}
-                          data-revealed={revealedId === tx.id ? "true" : "false"}
-                          data-pressing={pressingId === tx.id ? "true" : "false"}
-                          className="tx-row stagger-item -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2"
-                          onPointerDown={(e) => onRowPointerDown(e, tx.id)}
-                          onPointerMove={onRowPointerMove}
-                          onPointerUp={cancelLongPress}
-                          onPointerCancel={cancelLongPress}
-                          onPointerLeave={cancelLongPress}
-                        >
-                          {/* w-0: иначе неразрывный текст строки задаёт min-content всей странице */}
-                          <div className="w-0 min-w-0 flex-1">
-                            <p className="truncate text-sm leading-tight font-medium">
-                              {TYPE_LABELS[tx.type]}
-                              {tx.memberName && (
-                                <span className="text-muted-foreground font-normal">
-                                  {` · ${tx.memberName}`}
-                                </span>
-                              )}
-                            </p>
-                            <p className="text-muted-foreground mt-1 truncate text-xs leading-tight">
-                              {[
-                                noteWithoutMonth(tx.note, tx.occurredAt),
-                                formatDate(tx.occurredAt),
-                              ]
-                                .filter(Boolean)
-                                .join(" · ")}
-                            </p>
-                          </div>
-                          <div className="row-swap shrink-0">
-                            <span
-                              className={`row-amount text-sm font-semibold tabular-nums ${tx.type === "withdrawal" ? "text-destructive" : "text-foreground"}`}
-                            >
-                              <TextMorph as="span" locale="ru" duration={200}>
-                                {`${tx.type === "withdrawal" ? "−" : "+"}${formatMoney(tx.amountCents)}`}
-                              </TextMorph>
-                            </span>
-                            <div className="row-actions flex items-center gap-0.5">
-                              <Button
-                                variant="ghost"
-                                size="xs"
-                                data-cuelume-press={SFX.secondary}
-                                onClick={() => startEdit(tx)}
-                              >
-                                Изменить
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="xs"
-                                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                data-cuelume-press={SFX.secondary}
-                                onClick={() => askRemove(tx)}
-                              >
-                                Удалить
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ),
-                    )}
-                  </section>
-                ))}
-                {!months.length && (
-                  <p className="text-muted-foreground py-6 text-center text-sm">
-                    Операций пока нет
+          {/* Одной колонкой список идёт под композером — там его отделяет
+              такая же линия, как левые блоки друг от друга. */}
+          <div
+            className={`border-border/70 border-t pt-4 lg:border-t-0 lg:pt-0 ${loading ? "content-busy" : "content-ready"}`}
+          >
+            {months.map((month, i) => (
+              /* Секции идут вплотную, воздух между месяцами даёт верхний
+                 отступ заголовка: липкий заголовок держится до последней
+                 строки месяца, и следующий выталкивает его без зазора. */
+              <section key={month.key} className="space-y-1">
+                {/* Первому заголовку верхний отступ не нужен: список и так
+                    начинается с него. */}
+                <div
+                  className={`border-border/70 bg-background sticky top-0 z-10 flex items-baseline justify-between gap-3 border-b pb-1.5 ${i === 0 ? "pt-0" : "pt-5"}`}
+                >
+                  <h3 className="text-muted-foreground text-xs font-medium">
+                    {month.label}
+                  </h3>
+                  <p
+                    className={`text-xs font-medium tabular-nums ${month.totalCents < 0 ? "text-destructive/80" : "text-muted-foreground"}`}
+                  >
+                    <TextMorph as="span" locale="ru" duration={200}>
+                      {`${month.totalCents < 0 ? "−" : "+"}${formatMoney(Math.abs(month.totalCents))}`}
+                    </TextMorph>
                   </p>
+                </div>
+
+                {month.items.map((tx) =>
+                  editing?.id === tx.id ? (
+                    <form
+                      key={tx.id}
+                      className="bg-muted/30 my-1 grid gap-3 rounded-xl border p-3"
+                      onSubmit={saveEdit}
+                    >
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="grid gap-2">
+                          <Label>Тип</Label>
+                          <select
+                            className="field border-input bg-background h-10 rounded-md border px-3 text-base md:text-sm"
+                            value={editing.type}
+                            onChange={(e) => {
+                              sfx("nav");
+                              setEditing({
+                                ...editing,
+                                type: e.target.value as TransactionType,
+                              });
+                            }}
+                          >
+                            {ALL_TYPES.map((t) => (
+                              <option key={t} value={t}>
+                                {TYPE_LABELS[t]}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Сумма</Label>
+                          <Input
+                            value={editing.amount}
+                            onChange={(e) =>
+                              setEditing({ ...editing, amount: e.target.value })
+                            }
+                            inputMode="decimal"
+                            className="tabular-nums"
+                            autoFocus
+                          />
+                        </div>
+                        {needsMember(editing.type) && (
+                          <div className="grid gap-2">
+                            <Label>Участник</Label>
+                            <select
+                              className="field border-input bg-background h-10 rounded-md border px-3 text-base md:text-sm"
+                              value={editing.memberId}
+                              onChange={(e) => {
+                                sfx("nav");
+                                setEditing({ ...editing, memberId: e.target.value });
+                              }}
+                            >
+                              {(summary?.members ?? []).map((m) => (
+                                <option key={m.id} value={m.id}>
+                                  {m.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        <div className="grid gap-2">
+                          <Label>Дата</Label>
+                          <Input
+                            type="date"
+                            value={editing.date}
+                            onChange={(e) =>
+                              setEditing({ ...editing, date: e.target.value })
+                            }
+                          />
+                        </div>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Комментарий</Label>
+                        <Input
+                          value={editing.note}
+                          onChange={(e) =>
+                            setEditing({ ...editing, note: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          data-cuelume-press={SFX.secondary}
+                          onClick={cancelEdit}
+                        >
+                          Отмена
+                        </Button>
+                        <Button
+                          type="submit"
+                          size="sm"
+                          disabled={loading}
+                          data-cuelume-press={SFX.primaryPress}
+                        >
+                          Сохранить
+                        </Button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div
+                      key={tx.id}
+                      data-row-id={tx.id}
+                      data-revealed={revealedId === tx.id ? "true" : "false"}
+                      data-pressing={pressingId === tx.id ? "true" : "false"}
+                      className="tx-row stagger-item -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2"
+                      onPointerDown={(e) => onRowPointerDown(e, tx.id)}
+                      onPointerMove={onRowPointerMove}
+                      onPointerUp={cancelLongPress}
+                      onPointerCancel={cancelLongPress}
+                      onPointerLeave={cancelLongPress}
+                    >
+                      {/* w-0: иначе неразрывный текст строки задаёт min-content всей странице */}
+                      <div className="w-0 min-w-0 flex-1">
+                        <p className="truncate text-sm leading-tight font-medium">
+                          {TYPE_LABELS[tx.type]}
+                          {tx.memberName && (
+                            <span className="text-muted-foreground font-normal">
+                              {` · ${tx.memberName}`}
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-muted-foreground mt-1 truncate text-xs leading-tight">
+                          {[
+                            noteWithoutMonth(tx.note, tx.occurredAt),
+                            formatDate(tx.occurredAt),
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      </div>
+                      <div className="row-swap shrink-0">
+                        <span
+                          className={`row-amount text-sm font-semibold tabular-nums ${tx.type === "withdrawal" ? "text-destructive" : "text-foreground"}`}
+                        >
+                          <TextMorph as="span" locale="ru" duration={200}>
+                            {`${tx.type === "withdrawal" ? "−" : "+"}${formatMoney(tx.amountCents)}`}
+                          </TextMorph>
+                        </span>
+                        <div className="row-actions flex items-center gap-0.5">
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            data-cuelume-press={SFX.secondary}
+                            onClick={() => startEdit(tx)}
+                          >
+                            Изменить
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            data-cuelume-press={SFX.secondary}
+                            onClick={() => askRemove(tx)}
+                          >
+                            Удалить
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ),
                 )}
-              </CardContent>
-            </Card>
+              </section>
+            ))}
+            {!months.length && (
+              <p className="text-muted-foreground py-6 text-center text-sm">
+                Операций пока нет
+              </p>
+            )}
           </div>
         </div>
       </div>
