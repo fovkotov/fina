@@ -112,6 +112,13 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* В preflight Tailwind v4 у кнопок больше нет cursor: pointer — возвращаем его
+     тут, а не классом на каждой кнопке. role="button" нужен потому, что
+     @base-ui/react рисует часть кнопок не тегом button. */
+  button:not(:disabled):not([aria-disabled="true"]),
+  [role="button"]:not(:disabled):not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
 }
 
 /* —— Экран входа: два блика по углам —— */
