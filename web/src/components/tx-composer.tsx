@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { X } from "lucide-react";
 import { TextMorph } from "torph/react";
 import { Button } from "@/components/ui/button";
 import { AVATARS, SIGN_IMAGES } from "@/lib/assets";
@@ -85,8 +86,12 @@ export function TxComposer({
             key={t}
             type="button"
             aria-pressed={special === t}
+            /* Крестик уже намекает на снятие выбора, но скринридеру нужен текст. */
+            aria-label={
+              special === t ? `${TYPE_LABELS[t]}, снять выбор` : undefined
+            }
             /* Тот же чип, что у быстрых сумм снизу; выбранный — в акценте. */
-            className={`pressable flex items-center justify-center rounded-[30px] px-[15px] py-[8px] text-[16px] font-medium ${
+            className={`pressable flex items-center justify-center gap-[5px] rounded-[30px] px-[15px] py-[8px] text-[16px] font-medium ${
               special === t
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground"
@@ -95,6 +100,10 @@ export function TxComposer({
             onClick={() => onSpecialChange(special === t ? null : t)}
           >
             {TYPE_LABELS[t]}
+            {special === t && (
+              /* Не вложенная кнопка: клик по всему чипу и так снимает выбор. */
+              <X className="swap-in size-[15px]" strokeWidth={2.5} aria-hidden />
+            )}
           </button>
         ))}
       </div>
