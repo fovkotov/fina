@@ -503,7 +503,7 @@ export function FinaApp() {
     /* Фон кабинета ровный: карточек нет, зато липкий заголовок месяца может
        перекрывать строки непрозрачной подложкой того же цвета. */
     <div className="bg-background min-h-screen">
-      <div className="mx-auto flex max-w-5xl flex-col gap-6 p-4 md:p-8">
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-4 md:p-8">
         {error && (
           <div
             key={`banner-${shakeError}`}
@@ -513,7 +513,7 @@ export function FinaApp() {
           </div>
         )}
 
-        <div className="grid items-start gap-4 lg:grid-cols-[var(--composer-field)_minmax(0,1fr)] lg:gap-x-12">
+        <div className="grid items-start gap-4 lg:grid-cols-[var(--composer-field)_480px] lg:gap-x-12">
           <div className="grid gap-4 lg:sticky lg:top-8 lg:self-start">
             <section
               className={`surface-enter grid gap-4 ${loading ? "content-busy" : "content-ready"}`}
@@ -542,7 +542,7 @@ export function FinaApp() {
                 {(summary?.members ?? []).map((m, i) => (
                   <div
                     key={m.id}
-                    className="stagger-item bg-muted/60 rounded-xl p-3 sm:p-4"
+                    className="stagger-item"
                     style={{ animationDelay: `${i * 40}ms` }}
                   >
                     <p className="text-muted-foreground text-xs sm:text-sm">{m.name}</p>
@@ -557,7 +557,7 @@ export function FinaApp() {
                 ))}
               </div>
               <div className="grid grid-cols-3 gap-2 text-[clamp(0.75rem,3.4vw,0.875rem)]">
-                <div className="stagger-item rounded-lg bg-muted/60 p-3">
+                <div className="stagger-item">
                   <p className="text-muted-foreground">Изи мани</p>
                   <TextMorph as="p" locale="ru" duration={240} className="font-medium tabular-nums">
                     {moneyLabel(summary?.accrualsCents ?? 0)}
@@ -566,9 +566,10 @@ export function FinaApp() {
               </div>
             </section>
 
-            {/* Карточек больше нет — блоки делит линия с воздухом 32px по бокам
-                (16 из gap колонки плюс столько же своих). */}
-            <section className="border-border/70 mt-4 border-t pt-8">
+            {/* Карточек больше нет — блоки делит линия: на телефоне по 64px
+                воздуха с каждой стороны (16 из gap колонки плюс mt-12),
+                на десктопе — прежние 32px. */}
+            <section className="border-border/70 mt-12 border-t pt-16 lg:mt-4 lg:pt-8">
               <TxComposer
                 type={opType}
                 onTypeChange={setOpType}
@@ -583,25 +584,12 @@ export function FinaApp() {
                 disabled={loading}
               />
             </section>
-
-            <div className="flex">
-              <Button
-                variant="ghost"
-                data-cuelume-press={SFX.logout}
-                onClick={() => {
-                  logout();
-                  setLoggedIn(false);
-                }}
-              >
-                Выйти
-              </Button>
-            </div>
           </div>
 
           {/* Одной колонкой список идёт под композером — там его отделяет
               такая же линия, как левые блоки друг от друга. */}
           <div
-            className={`border-border/70 mt-4 border-t pt-8 lg:mt-0 lg:border-t-0 lg:pt-0 ${loading ? "content-busy" : "content-ready"}`}
+            className={`border-border/70 mt-12 border-t pt-16 lg:mt-0 lg:border-t-0 lg:pt-0 ${loading ? "content-busy" : "content-ready"}`}
           >
             {months.map((month, i) => (
               /* Секции идут вплотную, воздух между месяцами даёт верхний
@@ -609,7 +597,7 @@ export function FinaApp() {
                  строки месяца, и следующий выталкивает его без зазора. */
               <section key={month.key} className="space-y-1">
                 {month.showYear && (
-                  <div className="text-muted-foreground flex items-center gap-3 pt-6 text-xs font-medium tabular-nums">
+                  <div className="text-muted-foreground flex items-center gap-3 pt-12 text-xs font-medium tabular-nums">
                     <span className="border-border/70 flex-1 border-t" />
                     {month.year}
                     <span className="border-border/70 flex-1 border-t" />
@@ -618,7 +606,7 @@ export function FinaApp() {
                 {/* Первому заголовку верхний отступ не нужен: список и так
                     начинается с него, а после линии года хватает короткого. */}
                 <div
-                  className={`border-border/70 bg-background sticky top-0 z-10 flex items-baseline justify-between gap-3 border-b pb-1.5 ${i === 0 ? "pt-0" : month.showYear ? "pt-2" : "pt-5"}`}
+                  className={`border-border/70 bg-background sticky top-0 z-10 flex items-baseline justify-between gap-3 border-b pb-1.5 ${i === 0 ? "pt-0" : month.showYear ? "pt-4" : "pt-10"}`}
                 >
                   <h3 className="text-muted-foreground text-xs font-medium">
                     {month.label}
@@ -802,6 +790,20 @@ export function FinaApp() {
               </p>
             )}
           </div>
+        </div>
+
+        {/* Выход — последнее, что есть на странице: под обеими колонками. */}
+        <div className="flex">
+          <Button
+            variant="ghost"
+            data-cuelume-press={SFX.logout}
+            onClick={() => {
+              logout();
+              setLoggedIn(false);
+            }}
+          >
+            Выйти
+          </Button>
         </div>
       </div>
 
