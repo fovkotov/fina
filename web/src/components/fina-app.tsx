@@ -507,7 +507,7 @@ export function FinaApp() {
           </div>
         )}
 
-        <div className="grid items-start gap-4 lg:grid-cols-[1.3fr_1fr]">
+        <div className="grid items-start gap-4 lg:grid-cols-[var(--composer-column)_minmax(0,1fr)]">
           <div className="grid gap-4 lg:sticky lg:top-8 lg:self-start">
             <Card className={loading ? "content-busy" : "content-ready"}>
               <CardHeader>
@@ -599,7 +599,7 @@ export function FinaApp() {
                      строки месяца, и следующий выталкивает его без зазора. */
                   <section key={month.key} className="space-y-1">
                     <div className="border-border/70 bg-card sticky top-0 z-10 -mx-5 flex items-baseline justify-between gap-3 border-b px-5 pt-5 pb-1.5 backdrop-blur-sm">
-                      <h3 className="text-muted-foreground text-[0.6875rem] font-semibold tracking-[0.09em] uppercase">
+                      <h3 className="text-muted-foreground text-xs font-medium">
                         {month.label}
                       </h3>
                       <p

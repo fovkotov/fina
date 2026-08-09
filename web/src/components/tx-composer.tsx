@@ -71,7 +71,7 @@ export function TxComposer({
 
   return (
     <form
-      className="grid max-w-[420px] gap-[9px]"
+      className="grid w-full max-w-[var(--composer-field)] gap-[9px]"
       // сумма форматируется пробелами и не проходит pattern="[0-9]*" у поля
       noValidate
       onSubmit={(e) => {

@@ -53,6 +53,9 @@
   --input: oklch(0.9 0 0);
   --ring: oklch(0.45 0 0);
   --radius: 0.75rem;
+  /* Композер задаёт ширину левой колонки: поле ввода плюс отступы карточки (px-5). */
+  --composer-field: 420px;
+  --composer-column: calc(var(--composer-field) + 2 * 1.25rem);
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
