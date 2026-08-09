@@ -195,7 +195,8 @@ export function TxComposer({
           type="submit"
           size="lg"
           disabled={disabled}
-          className="reveal-up mt-1 justify-self-start rounded-[30px] px-5"
+          /* Кнопка повторяет габариты поля ввода: та же ширина, высота и скругление. */
+          className="reveal-up mt-1 h-[74px] w-full rounded-[60px] text-[18px]"
           data-cuelume-press={SFX.primaryPress}
         >
           {special
