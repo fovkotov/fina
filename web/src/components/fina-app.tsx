@@ -513,7 +513,7 @@ export function FinaApp() {
           </div>
         )}
 
-        <div className="grid items-start gap-4 lg:grid-cols-[var(--composer-field)_minmax(0,1fr)]">
+        <div className="grid items-start gap-4 lg:grid-cols-[var(--composer-field)_minmax(0,1fr)] lg:gap-x-12">
           <div className="grid gap-4 lg:sticky lg:top-8 lg:self-start">
             <section
               className={`surface-enter grid gap-4 ${loading ? "content-busy" : "content-ready"}`}
