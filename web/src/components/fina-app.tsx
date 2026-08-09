@@ -535,11 +535,13 @@ export function FinaApp() {
                   {(summary?.members ?? []).map((m, i) => (
                     <div
                       key={m.id}
-                      className="stagger-item bg-muted/60 rounded-xl p-4"
+                      className="stagger-item bg-muted/60 rounded-xl p-3 sm:p-4"
                       style={{ animationDelay: `${i * 40}ms` }}
                     >
-                      <p className="text-sm text-muted-foreground">{m.name}</p>
-                      <p className="text-xl font-semibold tabular-nums">
+                      <p className="text-muted-foreground text-xs sm:text-sm">{m.name}</p>
+                      {/* Баланс длинный, а плитка на телефоне — половина экрана:
+                          кегль тянется за шириной вьюпорта и упирается в 20px. */}
+                      <p className="text-[clamp(0.75rem,4vw,1.25rem)] font-semibold tabular-nums">
                         <TextMorph as="span" locale="ru" duration={240}>
                           {moneyLabel(m.balanceCents ?? 0)}
                         </TextMorph>
@@ -547,7 +549,7 @@ export function FinaApp() {
                     </div>
                   ))}
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="grid grid-cols-3 gap-2 text-[clamp(0.75rem,3.4vw,0.875rem)]">
                   <div className="stagger-item rounded-lg bg-muted/60 p-3">
                     <p className="text-muted-foreground">Изи мани</p>
                     <TextMorph as="p" locale="ru" duration={240} className="font-medium tabular-nums">
