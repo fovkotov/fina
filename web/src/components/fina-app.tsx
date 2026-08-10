@@ -14,6 +14,8 @@ import {
   formatMoney,
   login,
   logout,
+  readBootstrapCache,
+  saveBootstrapCache,
   savedMember,
   savedToken,
   setApiBase,
@@ -195,10 +197,16 @@ export function FinaApp() {
     setInviteCode(inviteFromUrl());
     if (readFlag(HIDE_BALANCES_KEY)) setHideBalances(true);
     requestAnimationFrame(() => setMounted(true));
-    // Восстановление сессии — сразу bootstrap, без лишнего setLoggedIn→effect→refresh.
+    // Сессия есть — рисуем кэш мгновенно, свежие данные подтянем фоном.
     if (savedMember() && savedToken()) {
+      const cached = readBootstrapCache();
+      if (cached) {
+        setSummary(cached.summary);
+        setTransactions(cached.transactions);
+        seedOpDefaults(cached.summary, cached.transactions);
+      }
       setLoggedIn(true);
-      void refresh();
+      void refresh({ background: Boolean(cached), silent: Boolean(cached) });
     }
   }, []);
 
@@ -222,22 +230,27 @@ export function FinaApp() {
     sfx("error");
   }
 
-  async function refresh() {
-    setLoading(true);
-    setError(null);
+  async function refresh(opts?: { background?: boolean; silent?: boolean }) {
+    const background = opts?.background ?? false;
+    if (!background) setLoading(true);
+    if (!opts?.silent) setError(null);
     try {
       const { summary: s, transactions: t } = await fetchBootstrap();
       setSummary(s);
       setTransactions(t);
       seedOpDefaults(s, t);
+      saveBootstrapCache(s, t);
     } catch (e) {
-      flashError(e instanceof Error ? e.message : "Ошибка загрузки");
+      // Кэш уже на экране — сетевой сбой фоном не перекрываем баннером.
+      if (!opts?.silent) {
+        flashError(e instanceof Error ? e.message : "Ошибка загрузки");
+      }
       if (String(e).toLowerCase().includes("unauthorized")) {
         logout();
         setLoggedIn(false);
       }
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }
 
@@ -371,6 +384,7 @@ export function FinaApp() {
       if (data.transactions) {
         setTransactions(data.transactions);
         seedOpDefaults(data.summary, data.transactions);
+        saveBootstrapCache(data.summary, data.transactions);
       } else {
         // Старый воркер без transactions в login — догрузим bootstrap/парой запросов.
         await refresh();

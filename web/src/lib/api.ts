@@ -154,6 +154,7 @@ export async function login(inviteCode: string, pin: string, memberName: string)
 export function logout() {
   store.remove("token");
   store.remove("member");
+  store.remove("bootstrap");
 }
 
 export function savedToken() {
@@ -165,6 +166,31 @@ export function savedMember(): Member | null {
   if (!raw) return null;
   try {
     return JSON.parse(raw) as Member;
+  } catch {
+    return null;
+  }
+}
+
+const BOOTSTRAP_KEY = "bootstrap";
+
+/** Последний удачный кабинет — чтобы открыть UI сразу, не дожидаясь сети. */
+export function saveBootstrapCache(summary: Summary, transactions: Transaction[]) {
+  store.set(BOOTSTRAP_KEY, JSON.stringify({ summary, transactions }));
+}
+
+export function readBootstrapCache(): {
+  summary: Summary;
+  transactions: Transaction[];
+} | null {
+  const raw = store.get(BOOTSTRAP_KEY);
+  if (!raw) return null;
+  try {
+    const data = JSON.parse(raw) as {
+      summary?: Summary;
+      transactions?: Transaction[];
+    };
+    if (!data?.summary || !Array.isArray(data.transactions)) return null;
+    return { summary: data.summary, transactions: data.transactions };
   } catch {
     return null;
   }
