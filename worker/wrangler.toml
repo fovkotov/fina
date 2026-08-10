@@ -4,11 +4,24 @@ compatibility_date = "2025-06-01"
 
 # Свой домен вместо workers.dev: тот у российских операторов режется по SNI.
 # Старый адрес оставлен запасным — он ещё работает на домашнем интернете.
-routes = [{ pattern = "api.fovkotov.lol", custom_domain = true }]
+# app.fovkotov.lol — кабинет (статика); api.fovkotov.lol — тот же воркер, API.
+routes = [
+  { pattern = "api.fovkotov.lol", custom_domain = true },
+  { pattern = "app.fovkotov.lol", custom_domain = true },
+]
 workers_dev = true
+
+# Статика кабинета: собирается из web/ через `npm run build:cf`.
+# /api/* всегда идёт в Worker; остальное — файлы из ../web/out.
+[assets]
+directory = "../web/out"
+binding = "ASSETS"
+html_handling = "force-trailing-slash"
+not_found_handling = "404-page"
+run_worker_first = ["/api/*"]
 
 # GITHUB_TOKEN живёт в секретах: npx wrangler secret put GITHUB_TOKEN
 [vars]
 FINA_GIST_ID = "9ae03be0b8cb1a5a2d1818bd4492c8ea"
-WEB_URL = "https://fovkotov.github.io/fina"
-ALLOWED_ORIGINS = "https://fovkotov.github.io,http://localhost:3000"
+WEB_URL = "https://app.fovkotov.lol"
+ALLOWED_ORIGINS = "https://app.fovkotov.lol,https://api.fovkotov.lol,https://fovkotov.github.io,http://localhost:3000"

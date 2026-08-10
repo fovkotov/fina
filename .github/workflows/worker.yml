@@ -1,0 +1,48 @@
+name: Deploy worker (app + API)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "worker/**"
+      - ".github/workflows/worker.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: worker
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            worker/package-lock.json
+      - name: Install web
+        working-directory: web
+        run: npm ci
+      - name: Install worker
+        working-directory: worker
+        run: npm ci
+      - name: Build static web for Cloudflare
+        working-directory: web
+        run: npm run build:cf
+        env:
+          # Тот же origin, что и кабинет — /api/... на app.fovkotov.lol
+          NEXT_PUBLIC_API_BASE: ""
+      - name: Typecheck worker
+        working-directory: worker
+        run: npx tsc --noEmit
+      - name: Deploy
+        working-directory: worker
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

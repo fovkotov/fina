@@ -10,20 +10,21 @@ alwaysApply: true
 
 ## Куда что едет
 
-- `web/**` → GitHub Pages, автоматически по пушу в `main` (`.github/workflows/pages.yml`).
-  Прод: https://fovkotov.github.io/fina
-- `worker/**` → Cloudflare Worker, **только вручную**: `cd worker && npx wrangler deploy`.
-  CI его не деплоит. Прод: https://fina-api.fovkotov.workers.dev
+- Прод-кабинет: **https://app.fovkotov.lol** — статика на том же Cloudflare Worker,
+  что и API. CI: `.github/workflows/worker.yml` (нужны secrets `CLOUDFLARE_API_TOKEN`
+  и опционально `CLOUDFLARE_ACCOUNT_ID`). Вручную: `cd worker && npm run deploy`.
+- API: **https://api.fovkotov.lol** (запасной — `*.workers.dev`, часто режется без VPN).
+- `web/**` → ещё и GitHub Pages по пушу в `main` (`.github/workflows/pages.yml`) —
+  запасной адрес https://fovkotov.github.io/fina, без VPN часто недоступен.
 
 ## Порядок выкатки
 
 1. Проверь то, что менял:
-   - веб → `cd web && GITHUB_PAGES=true PAGES_BASE_PATH=/fina npm run build:pages`
-   - воркер → `cd worker && npx tsc --noEmit`
-2. Если трогал `worker/**` — задеплой воркер **до** пуша веба, иначе фронт уедет
-   на эндпоинт, которого ещё нет.
-3. `git add -A && git commit && git push origin main`.
-4. Убедись, что workflow позеленел: `gh run list --limit 1`. Упал — чини сразу.
+   - веб/воркер → `cd worker && npm run build:web && npx tsc --noEmit`
+   - только Pages-запас → `cd web && GITHUB_PAGES=true PAGES_BASE_PATH=/fina npm run build:pages`
+2. Если токен есть локально — можно `cd worker && npm run deploy` до пуша.
+3. `git add -A && git commit && git push origin main` — CI выкатит Worker и Pages.
+4. Убедись, что workflow позеленел: `gh run list --limit 2`. Упал — чини сразу.
 
 ## Правила
 

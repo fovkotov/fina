@@ -11,31 +11,38 @@
 ## Архитектура
 
 - `web/` — Next.js App Router, shadcn UI, torph (morph текста), cuelume (звуки); на прод собирается статикой
-- `worker/` — API на Cloudflare Worker, там же лежит секрет `GITHUB_TOKEN`
+- `worker/` — API + раздача кабинета на Cloudflare Worker, там же лежит секрет `GITHUB_TOKEN`
 - Общая БД: GitHub Gist (`FINA_GIST_ID` + `GITHUB_TOKEN`)
 
 ## Прод
 
-- Веб: **https://fovkotov.github.io/fina/** (GitHub Pages, workflow `.github/workflows/pages.yml`)
-- API: **https://api.fovkotov.lol** (запасной адрес — https://fina-api.fovkotov.workers.dev)
+- Кабинет: **https://app.fovkotov.lol/** (Cloudflare Worker + static assets)
+- API: **https://api.fovkotov.lol** (тот же воркер; запасной — https://fina-api.fovkotov.workers.dev)
+- Запасной кабинет: https://fovkotov.github.io/fina/ (GitHub Pages) — без VPN часто не открывается
 - Адрес API для сборки Pages лежит в переменной репозитория `FINA_API_BASE`
 
-### Почему API не на `workers.dev`
+### Почему не github.io / workers.dev
 
-Российские операторы режут `*.workers.dev` по SNI: сайт с Pages грузится, а запрос
-к API падает с `Load failed` — на домашнем Wi-Fi всё работает, с мобильного нет.
-Поэтому воркер отвечает на своём домене `api.fovkotov.lol` (зона `fovkotov.lol`
-делегирована на Cloudflare, регистрация осталась в REG.RU).
+Российские операторы режут и `*.workers.dev`, и часто `*.github.io` по SNI/IP:
+страница не грузится или API падает с `Load failed`. Поэтому и кабинет, и API
+отвечают на своих доменах в зоне `fovkotov.lol` (зона делегирована на Cloudflare,
+регистрация осталась в REG.RU).
 
 Записи личного сайта в этой зоне стоят серыми (DNS only) — он как жил на GitHub
-Pages, так и живёт. Старый адрес `workers.dev` оставлен включённым запасным.
+Pages, так и живёт. `fina.fovkotov.lol` занят личным сайтом, кабинет — на
+`app.fovkotov.lol`. Старый адрес `workers.dev` оставлен включённым запасным.
 
-Если однажды понадобится сменить адрес API: поправить `routes` в
-`worker/wrangler.toml`, задеплоить воркер, затем
-`gh variable set FINA_API_BASE --body https://новый-адрес` и `gh workflow run pages.yml`.
+Сборка кабинета для Cloudflare: из корня сайта (без `/fina`), API по умолчанию
+тот же origin — запросы идут на `/api/...`. На запасном GitHub Pages в билд
+вшит `FINA_API_BASE` (обычно `https://api.fovkotov.lol`).
+
+Если однажды понадобится сменить адрес: поправить `routes` в
+`worker/wrangler.toml`, задеплоить воркер (`cd worker && npm run deploy`), затем
+при необходимости `gh variable set FINA_API_BASE --body https://новый-адрес` и
+`gh workflow run pages.yml`.
 
 Кабинет умеет переключаться на другой API и без пересборки: открыть
-`https://fovkotov.github.io/fina/?api=https://…` — адрес запомнится в браузере,
+`https://app.fovkotov.lol/?api=https://…` — адрес запомнится в браузере,
 `?api=` без значения возвращает всё обратно.
 
 ## Локальный запуск
@@ -57,8 +64,8 @@ NEXT_PUBLIC_API_BASE=http://localhost:8787 npm run dev   # http://localhost:3000
 ## Деплой
 
 ```bash
-cd worker && npx wrangler deploy        # API
-git push origin main                    # веб уедет на Pages сам
+cd worker && npm run deploy   # статика web/out + API на app/api.fovkotov.lol
+git push origin main          # запасной GitHub Pages
 ```
 
 Секрет обновляется так: `cd worker && npx wrangler secret put GITHUB_TOKEN`.
