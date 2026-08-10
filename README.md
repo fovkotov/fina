@@ -16,9 +16,9 @@
 
 ## Прод
 
-- Кабинет: **https://app.fovkotov.lol/** (Cloudflare Worker + static assets)
-- API: **https://api.fovkotov.lol** (тот же воркер; запасной — https://fina-api.fovkotov.workers.dev)
-- Запасной кабинет: https://fovkotov.github.io/fina/ (GitHub Pages) — без VPN часто не открывается
+- Кабинет и API: **https://api.fovkotov.lol/** (один Cloudflare Worker + static assets)
+- Запасной API: https://fina-api.fovkotov.workers.dev (без VPN часто режется)
+- Запасной кабинет: https://fovkotov.github.io/fina/ (GitHub Pages, без VPN часто не открывается)
 - Адрес API для сборки Pages лежит в переменной репозитория `FINA_API_BASE`
 
 ### Почему не github.io / workers.dev
@@ -29,8 +29,10 @@
 регистрация осталась в REG.RU).
 
 Записи личного сайта в этой зоне стоят серыми (DNS only) — он как жил на GitHub
-Pages, так и живёт. `fina.fovkotov.lol` занят личным сайтом, кабинет — на
-`app.fovkotov.lol`. Старый адрес `workers.dev` оставлен включённым запасным.
+Pages, так и живёт. `fina.fovkotov.lol` занят личным сайтом; кабинет живёт на
+`api.fovkotov.lol` (тот же воркер отдаёт и UI, и `/api`). Поддомен
+`app.fovkotov.lol` зарезервирован за воркером, но DNS для него ещё нужно
+добавить вручную. Старый адрес `workers.dev` оставлен запасным.
 
 Сборка кабинета для Cloudflare: из корня сайта (без `/fina`), API по умолчанию
 тот же origin — запросы идут на `/api/...`. На запасном GitHub Pages в билд
@@ -42,7 +44,7 @@ Pages, так и живёт. `fina.fovkotov.lol` занят личным сай�
 `gh workflow run pages.yml`.
 
 Кабинет умеет переключаться на другой API и без пересборки: открыть
-`https://app.fovkotov.lol/?api=https://…` — адрес запомнится в браузере,
+`https://api.fovkotov.lol/?api=https://…` — адрес запомнится в браузере,
 `?api=` без значения возвращает всё обратно.
 
 ## Локальный запуск

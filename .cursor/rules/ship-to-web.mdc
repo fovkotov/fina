@@ -10,10 +10,10 @@ alwaysApply: true
 
 ## Куда что едет
 
-- Прод-кабинет: **https://app.fovkotov.lol** — статика на том же Cloudflare Worker,
-  что и API. CI: `.github/workflows/worker.yml` (нужны secrets `CLOUDFLARE_API_TOKEN`
-  и опционально `CLOUDFLARE_ACCOUNT_ID`). Вручную: `cd worker && npm run deploy`.
-- API: **https://api.fovkotov.lol** (запасной — `*.workers.dev`, часто режется без VPN).
+- Прод: **https://api.fovkotov.lol** — кабинет и API на одном Cloudflare Worker.
+  CI: `.github/workflows/worker.yml` (secrets `CLOUDFLARE_API_TOKEN` и
+  опционально `CLOUDFLARE_ACCOUNT_ID`). Вручную: `cd worker && npm run deploy`.
+- Запасной API: `*.workers.dev` (часто режется без VPN).
 - `web/**` → ещё и GitHub Pages по пушу в `main` (`.github/workflows/pages.yml`) —
   запасной адрес https://fovkotov.github.io/fina, без VPN часто недоступен.
 
