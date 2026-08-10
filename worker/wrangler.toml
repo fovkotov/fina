@@ -18,7 +18,8 @@ directory = "../web/out"
 binding = "ASSETS"
 html_handling = "force-trailing-slash"
 not_found_handling = "404-page"
-run_worker_first = ["/api/*"]
+# Worker решает сам: /api/* → код, остальное → env.ASSETS.fetch
+run_worker_first = true
 
 # GITHUB_TOKEN живёт в секретах: npx wrangler secret put GITHUB_TOKEN
 [vars]
