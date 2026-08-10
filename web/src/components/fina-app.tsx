@@ -347,14 +347,23 @@ export function FinaApp() {
   }
 
   async function removeTx(id: string) {
+    const previousTransactions = transactions;
+    const previousSummary = summary;
+    setPendingDelete(null);
+    setRevealedId(null);
+    if (editing?.id === id) cancelEdit();
+    // Сразу убираем строку: после DELETE gist иногда ещё отдаёт прошлую
+    // ревизию, и refresh() возвращал удалённую операцию обратно на экран —
+    // особенно заметно на мобилке, пока не переоткроешь сайт.
+    setTransactions((list) => list.filter((t) => t.id !== id));
     setLoading(true);
     setError(null);
-    setPendingDelete(null);
     try {
-      await deleteTransaction(id);
-      if (editing?.id === id) cancelEdit();
-      await refresh();
+      const result = await deleteTransaction(id);
+      setSummary(result.summary);
     } catch (err) {
+      setTransactions(previousTransactions);
+      setSummary(previousSummary);
       flashError(err instanceof Error ? err.message : "Не удалось удалить");
     } finally {
       setLoading(false);
@@ -831,8 +840,10 @@ export function FinaApp() {
             </AlertDialogClose>
             <Button
               data-cuelume-press={SFX.remove}
+              disabled={loading}
               onClick={() => {
-                if (pendingDelete) void removeTx(pendingDelete.id);
+                const id = pendingDelete?.id;
+                if (id) void removeTx(id);
               }}
             >
               Удалить
