@@ -141,6 +141,7 @@ export async function login(inviteCode: string, pin: string, memberName: string)
     token: string;
     member: Member;
     summary: Summary;
+    transactions?: Transaction[];
   }>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ inviteCode, pin, memberName }),
@@ -174,6 +175,24 @@ export const fetchSummary = () => request<Summary>("/api/summary");
 export async function fetchTransactions() {
   const data = await request<{ transactions: Transaction[] }>("/api/transactions");
   return data.transactions;
+}
+
+/** Старт кабинета одним запросом — без параллельных loadDb на воркере. */
+export async function fetchBootstrap() {
+  try {
+    return await request<{ summary: Summary; transactions: Transaction[] }>(
+      "/api/bootstrap",
+    );
+  } catch (e) {
+    // Пока новый воркер не выкатили — собираем теми же двумя эндпоинтами.
+    const message = e instanceof Error ? e.message : "";
+    if (!/not found|404/i.test(message)) throw e;
+    const [summary, transactions] = await Promise.all([
+      fetchSummary(),
+      fetchTransactions(),
+    ]);
+    return { summary, transactions };
+  }
 }
 
 export function createTransaction(body: {

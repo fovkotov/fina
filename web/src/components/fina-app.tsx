@@ -8,8 +8,7 @@ import {
   TYPE_LABELS,
   createTransaction,
   deleteTransaction,
-  fetchSummary,
-  fetchTransactions,
+  fetchBootstrap,
   formatDate,
   formatDayMonth,
   formatMoney,
@@ -30,6 +29,7 @@ import {
   type OpType,
   type SpecialType,
 } from "@/components/tx-composer";
+import { PreloadImages } from "@/components/preload-images";
 import {
   AlertDialog,
   AlertDialogClose,
@@ -193,9 +193,13 @@ export function FinaApp() {
     bind();
     applyApiFromUrl();
     setInviteCode(inviteFromUrl());
-    if (savedMember() && savedToken()) setLoggedIn(true);
     if (readFlag(HIDE_BALANCES_KEY)) setHideBalances(true);
     requestAnimationFrame(() => setMounted(true));
+    // Восстановление сессии — сразу bootstrap, без лишнего setLoggedIn→effect→refresh.
+    if (savedMember() && savedToken()) {
+      setLoggedIn(true);
+      void refresh();
+    }
   }, []);
 
   /** Дефолты композера: участник — тот, кто вошёл; знак — как в его прошлой операции. */
@@ -222,7 +226,7 @@ export function FinaApp() {
     setLoading(true);
     setError(null);
     try {
-      const [s, t] = await Promise.all([fetchSummary(), fetchTransactions()]);
+      const { summary: s, transactions: t } = await fetchBootstrap();
       setSummary(s);
       setTransactions(t);
       seedOpDefaults(s, t);
@@ -236,10 +240,6 @@ export function FinaApp() {
       setLoading(false);
     }
   }
-
-  useEffect(() => {
-    if (loggedIn) void refresh();
-  }, [loggedIn]);
 
   /**
    * Долгое нажатие на строку открывает её действия — это тапскринный аналог
@@ -368,6 +368,13 @@ export function FinaApp() {
     try {
       const data = await login(inviteCode, pin, selectedName);
       setSummary(data.summary);
+      if (data.transactions) {
+        setTransactions(data.transactions);
+        seedOpDefaults(data.summary, data.transactions);
+      } else {
+        // Старый воркер без transactions в login — догрузим bootstrap/парой запросов.
+        await refresh();
+      }
       setLoggedIn(true);
       sfx("success");
     } catch (err) {
@@ -503,6 +510,8 @@ export function FinaApp() {
     /* Фон кабинета ровный: карточек нет, зато липкий заголовок месяца может
        перекрывать строки непрозрачной подложкой того же цвета. */
     <div className="bg-background min-h-screen">
+      {/* Картинки композера — только после входа, чтобы не конкурировать с JS на сплэше. */}
+      <PreloadImages />
       <div className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-4 md:p-8">
         {error && (
           <div

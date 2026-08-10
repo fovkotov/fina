@@ -52,6 +52,19 @@ export type Env = {
 
 const DEFAULT_GIST_ID = "9ae03be0b8cb1a5a2d1818bd4492c8ea";
 const GIST_FILE = "fina-db.json";
+/** Короткий TTL: между вкладками данные свежие, а GitHub не дёргаем на каждый клик. */
+const MEMORY_TTL_MS = 30_000;
+const CACHE_TTL_SECONDS = 30;
+const SESSION_DAYS = 180;
+
+type MemoryCache = {
+  gistId: string;
+  data: DbData;
+  loadedAt: number;
+};
+
+let memoryCache: MemoryCache | null = null;
+let inflightLoad: Promise<DbData> | null = null;
 
 function hex(bytes: Uint8Array): string {
   return Array.from(bytes)
@@ -99,13 +112,62 @@ function githubHeaders(env: Env): HeadersInit {
   };
 }
 
-function gistUrl(env: Env): string {
-  return `https://api.github.com/gists/${env.FINA_GIST_ID ?? DEFAULT_GIST_ID}`;
+function gistIdOf(env: Env): string {
+  return env.FINA_GIST_ID ?? DEFAULT_GIST_ID;
 }
 
-export async function loadDb(env: Env): Promise<DbData> {
-  // Читаем всегда свежую ревизию: иначе сразу после записи можно получить старую сессию.
-  const res = await fetch(`${gistUrl(env)}?t=${Date.now()}`, {
+function gistUrl(env: Env): string {
+  return `https://api.github.com/gists/${gistIdOf(env)}`;
+}
+
+function cacheRequest(env: Env): Request {
+  // Свой origin — ключ только для caches.default, наружу не ходит.
+  return new Request(`https://fina-db.internal/gist/${gistIdOf(env)}`);
+}
+
+function cloneDb(data: DbData): DbData {
+  return JSON.parse(JSON.stringify(data)) as DbData;
+}
+
+function remember(env: Env, data: DbData) {
+  memoryCache = { gistId: gistIdOf(env), data: cloneDb(data), loadedAt: Date.now() };
+}
+
+async function putEdgeCache(env: Env, data: DbData) {
+  try {
+    const body = JSON.stringify(data);
+    const res = new Response(body, {
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": `public, max-age=${CACHE_TTL_SECONDS}`,
+      },
+    });
+    await caches.default.put(cacheRequest(env), res);
+  } catch {
+    /* Cache API может быть недоступен в некоторых окружениях — память всё равно есть. */
+  }
+}
+
+async function readEdgeCache(env: Env): Promise<DbData | null> {
+  try {
+    const hit = await caches.default.match(cacheRequest(env));
+    if (!hit) return null;
+    return (await hit.json()) as DbData;
+  } catch {
+    return null;
+  }
+}
+
+async function dropEdgeCache(env: Env) {
+  try {
+    await caches.default.delete(cacheRequest(env));
+  } catch {
+    /* ignore */
+  }
+}
+
+async function fetchGistDb(env: Env): Promise<DbData> {
+  const res = await fetch(gistUrl(env), {
     headers: { ...githubHeaders(env), "Cache-Control": "no-cache" },
     cf: { cacheTtl: 0, cacheEverything: false },
   });
@@ -123,7 +185,42 @@ export async function loadDb(env: Env): Promise<DbData> {
   return JSON.parse(content) as DbData;
 }
 
+export async function loadDb(env: Env): Promise<DbData> {
+  const gistId = gistIdOf(env);
+  if (
+    memoryCache &&
+    memoryCache.gistId === gistId &&
+    Date.now() - memoryCache.loadedAt < MEMORY_TTL_MS
+  ) {
+    return cloneDb(memoryCache.data);
+  }
+
+  if (inflightLoad) return cloneDb(await inflightLoad);
+
+  inflightLoad = (async () => {
+    const cached = await readEdgeCache(env);
+    if (cached) {
+      remember(env, cached);
+      return cached;
+    }
+    const fresh = await fetchGistDb(env);
+    remember(env, fresh);
+    await putEdgeCache(env, fresh);
+    return fresh;
+  })();
+
+  try {
+    return cloneDb(await inflightLoad);
+  } finally {
+    inflightLoad = null;
+  }
+}
+
 export async function saveDb(env: Env, data: DbData): Promise<void> {
+  // Сессии в gist больше не пишем на логин — подчищаем хвост, чтобы PATCH был легче.
+  const now = Date.now();
+  data.sessions = data.sessions.filter((s) => new Date(s.expires_at).getTime() > now);
+
   const res = await fetch(gistUrl(env), {
     method: "PATCH",
     headers: { ...githubHeaders(env), "Content-Type": "application/json" },
@@ -132,7 +229,86 @@ export async function saveDb(env: Env, data: DbData): Promise<void> {
     }),
   });
   if (!res.ok) {
+    memoryCache = null;
+    await dropEdgeCache(env);
     throw new Error(`Failed to save DB: ${res.status} ${await res.text()}`);
+  }
+  remember(env, data);
+  await putEdgeCache(env, data);
+}
+
+function b64url(bytes: ArrayBuffer | Uint8Array): string {
+  const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  let bin = "";
+  for (let i = 0; i < view.length; i++) bin += String.fromCharCode(view[i]);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function b64urlJson(value: unknown): string {
+  return b64url(new TextEncoder().encode(JSON.stringify(value)));
+}
+
+function fromB64url(text: string): Uint8Array {
+  const padded = text.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((text.length + 3) % 4);
+  const bin = atob(padded);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function hmacKey(env: Env): Promise<CryptoKey> {
+  if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is required for sessions");
+  return crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(`fina-session:${env.GITHUB_TOKEN}`),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
+}
+
+type SessionClaims = {
+  h: string;
+  m: string;
+  e: number;
+};
+
+/** Подписанный токен: вход без PATCH в gist — только чтение БД и HMAC. */
+export async function issueSessionToken(
+  env: Env,
+  householdId: string,
+  memberId: string,
+): Promise<{ token: string; expiresAt: string }> {
+  const expiresAtMs = Date.now() + 1000 * 60 * 60 * 24 * SESSION_DAYS;
+  const claims: SessionClaims = { h: householdId, m: memberId, e: expiresAtMs };
+  const body = b64urlJson(claims);
+  const key = await hmacKey(env);
+  const sig = b64url(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body)));
+  return { token: `v1.${body}.${sig}`, expiresAt: new Date(expiresAtMs).toISOString() };
+}
+
+async function verifySignedToken(
+  env: Env,
+  token: string,
+): Promise<SessionClaims | null> {
+  const parts = token.split(".");
+  if (parts.length !== 3 || parts[0] !== "v1") return null;
+  const [, body, sig] = parts;
+  const key = await hmacKey(env);
+  const ok = await crypto.subtle.verify(
+    "HMAC",
+    key,
+    fromB64url(sig),
+    new TextEncoder().encode(body),
+  );
+  if (!ok) return null;
+  try {
+    const claims = JSON.parse(new TextDecoder().decode(fromB64url(body))) as SessionClaims;
+    if (!claims?.h || !claims?.m || !claims?.e) return null;
+    if (claims.e < Date.now()) return null;
+    return claims;
+  } catch {
+    return null;
   }
 }
 
@@ -180,8 +356,35 @@ export function getSummary(data: DbData, householdId: string) {
   };
 }
 
-export function requireSession(data: DbData, token: string | null) {
+export function listTransactions(data: DbData, householdId: string) {
+  return data.transactions
+    .filter((t) => t.household_id === householdId)
+    .sort(
+      (a, b) =>
+        new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime(),
+    );
+}
+
+export async function requireSession(env: Env, data: DbData, token: string | null) {
   if (!token) return null;
+
+  const signed = await verifySignedToken(env, token);
+  if (signed) {
+    const member = data.members.find((m) => m.id === signed.m);
+    if (!member || member.household_id !== signed.h) return null;
+    return {
+      session: {
+        token,
+        household_id: signed.h,
+        member_id: signed.m,
+        created_at: new Date().toISOString(),
+        expires_at: new Date(signed.e).toISOString(),
+      } satisfies Session,
+      member,
+    };
+  }
+
+  // Старые токены из gist ещё принимаем, пока кто-то не перелогинится.
   const session = data.sessions.find((s) => s.token === token);
   if (!session) return null;
   if (new Date(session.expires_at).getTime() < Date.now()) return null;
