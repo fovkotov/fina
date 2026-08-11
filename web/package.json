@@ -6,7 +6,6 @@
     "dev": "next dev",
     "build": "next build",
     "build:pages": "GITHUB_PAGES=true next build",
-    "build:cf": "CLOUDFLARE=true next build",
     "start": "next start",
     "lint": "eslint"
   },

@@ -4,8 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "wrangler dev",
-    "build:web": "npm --prefix ../web run build:cf",
-    "deploy": "npm run build:web && wrangler deploy",
+    "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

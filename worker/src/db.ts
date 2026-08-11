@@ -47,7 +47,6 @@ export type Env = {
   FINA_GIST_ID?: string;
   WEB_URL?: string;
   ALLOWED_ORIGINS?: string;
-  ASSETS?: { fetch: (request: Request) => Promise<Response> };
 };
 
 const DEFAULT_GIST_ID = "9ae03be0b8cb1a5a2d1818bd4492c8ea";

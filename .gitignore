@@ -12,10 +12,3 @@ web/.env*.local
 # worker
 worker/node_modules
 worker/.wrangler
-
-# server (VPS, вне Cloudflare)
-server/node_modules/
-server/dist/
-server/public/
-server/.env
-server/.env.*

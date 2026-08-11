@@ -1,5 +1,5 @@
 ---
-description: Каждое локальное изменение сразу выкатывается в прод
+description: Каждое локальное изменение сразу выкатывается в веб (GitHub Pages + Cloudflare Worker)
 alwaysApply: true
 ---
 
@@ -10,22 +10,26 @@ alwaysApply: true
 
 ## Куда что едет
 
-- **Прод без VPN:** `server/` на Amvera / Timeweb Apps / VPS (не Cloudflare).
-  Docker: `server/Dockerfile`, корневой `docker-compose.yml`, `amvera.yml`.
-- Запас Cloudflare Worker: `cd worker && npm run deploy` (часто режется в РФ).
-- Запас GitHub Pages: пуш в `main` → `.github/workflows/pages.yml`.
+- `web/**` → GitHub Pages, автоматически по пушу в `main` (`.github/workflows/pages.yml`).
+  Прод: https://fovkotov.github.io/fina
+- `worker/**` → Cloudflare Worker, **только вручную**: `cd worker && npx wrangler deploy`.
+  CI его не деплоит. Прод: https://api.fovkotov.lol
+  (запасной — https://fina-api.fovkotov.workers.dev)
 
 ## Порядок выкатки
 
-1. Проверь: `cd server && npm run typecheck` и при необходимости
-   `cd web && CLOUDFLARE=true npm run build:cf`.
-2. Задеплой `server` на PaaS/VPS (Amvera push / Timeweb / `./server/deploy.sh`).
+1. Проверь то, что менял:
+   - веб → `cd web && GITHUB_PAGES=true PAGES_BASE_PATH=/fina npm run build:pages`
+   - воркер → `cd worker && npx tsc --noEmit`
+2. Если трогал `worker/**` — задеплой воркер **до** пуша веба, иначе фронт уедет
+   на эндпоинт, которого ещё нет.
 3. `git add -A && git commit && git push origin main`.
-4. Убедись, что Pages-workflow зелёный, если трогал `web/**`.
+4. Убедись, что workflow позеленел: `gh run list --limit 1`. Упал — чини сразу.
 
 ## Правила
 
 - Пуш только в `main`, веткам и PR тут делать нечего.
-- Красный билд не пушим.
-- В коммите едет всё дерево целиком (`git add -A`).
+- Красный билд не пушим: `build:pages` гоняет тот же `tsc`, что и CI.
+- В коммите едет всё дерево целиком (`git add -A`), включая чужие незавершённые
+  правки в рабочей копии — это осознанный выбор проекта.
 - Если `wrangler` ругается на TLS, повтори с `NODE_TLS_REJECT_UNAUTHORIZED=0`.

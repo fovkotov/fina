@@ -338,18 +338,6 @@ async function route(req: Request, env: Env): Promise<Response> {
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
-    const { pathname } = new URL(req.url);
-    const isApi =
-      pathname === "/api" ||
-      pathname.startsWith("/api/") ||
-      req.method.toUpperCase() === "OPTIONS";
-
-    // Кабинет — статика из ASSETS; API — этот скрипт. Иначе run_worker_first
-    // с паттерном иногда отдаёт Worker-овский 404 вместо index.html.
-    if (!isApi && env.ASSETS) {
-      return env.ASSETS.fetch(req);
-    }
-
     try {
       return await route(req, env);
     } catch (e) {

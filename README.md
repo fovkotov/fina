@@ -10,58 +10,58 @@
 
 ## Архитектура
 
-- `web/` — Next.js App Router, статика
-- `server/` — Node (Hono): API + раздача статики, БД в GitHub Gist
-- `worker/` — старый Cloudflare Worker (запасной; у части РФ-операторов CF режется по IP)
+- `web/` — Next.js App Router, shadcn UI, torph (morph текста), cuelume (звуки); на прод собирается статикой
+- `worker/` — API на Cloudflare Worker, там же лежит секрет `GITHUB_TOKEN`
+- Общая БД: GitHub Gist (`FINA_GIST_ID` + `GITHUB_TOKEN`)
 
-## Прод без VPN (важно)
+## Прод
 
-`*.workers.dev`, `github.io` и даже custom domain на Cloudflare часто **не открываются
-с мобильного интернета в РФ** — режут IP Cloudflare/GitHub. Поэтому прод должен
-жить на обычном сервере/PaaS **не на Cloudflare**.
+- Веб: **https://fovkotov.github.io/fina/** (GitHub Pages, workflow `.github/workflows/pages.yml`)
+- API: **https://api.fovkotov.lol** (запасной адрес — https://fina-api.fovkotov.workers.dev)
+- Адрес API для сборки Pages лежит в переменной репозитория `FINA_API_BASE`
 
-Готовый Docker-образ: `server/Dockerfile` (+ `docker-compose.yml` / `amvera.yml`).
+### Почему API не на `workers.dev`
 
-### Вариант A — Amvera (Москва), проще всего
+Российские операторы режут `*.workers.dev` по SNI: сайт с Pages грузится, а запрос
+к API падает с `Load failed` — на домашнем Wi-Fi всё работает, с мобильного нет.
+Поэтому воркер отвечает на своём домене `api.fovkotov.lol` (зона `fovkotov.lol`
+делегирована на Cloudflare, регистрация осталась в REG.RU).
 
-1. https://amvera.ru → создать приложение Docker, привязать этот GitHub-репо.
-2. В секретах приложения: `GITHUB_TOKEN` = тот же токен, что был у Worker.
-3. Дождаться деплоя, открыть технический домен Amvera — он должен открываться без VPN.
-4. Привязать свой домен `api.fovkotov.lol`:
-   - Cloudflare → Workers → fina-api → Domains: **удалить** custom domain `api` / `app`
-   - DNS: A/CNAME на то, что скажет Amvera, **прокси выключен (серое облако)**
+Записи личного сайта в этой зоне стоят серыми (DNS only) — он как жил на GitHub
+Pages, так и живёт. Старый адрес `workers.dev` оставлен включённым запасным.
 
-### Вариант B — Timeweb App Platform
+Если однажды понадобится сменить адрес API: поправить `routes` в
+`worker/wrangler.toml`, задеплоить воркер, затем
+`gh variable set FINA_API_BASE --body https://новый-адрес` и `gh workflow run pages.yml`.
 
-1. https://timeweb.cloud/services/apps → Docker Compose из этого репо.
-2. Env: `GITHUB_TOKEN=...`
-3. Технический домен Timeweb → проверка без VPN → привязка `api.fovkotov.lol` так же.
-
-### Вариант C — свой VPS
-
-```bash
-export VPS_SSH_HOST=... VPS_SSH_USER=root
-export VPS_SSH_PRIVATE_KEY='...' GITHUB_TOKEN='...'
-./server/deploy.sh
-```
-
-Потом DNS: A `api` и `app` → IP VPS, облако **серое**.
-
-## Запасные адреса (с VPN / домашний Wi‑Fi)
-
-- Cloudflare: https://api.fovkotov.lol/ (пока ещё привязан к Worker)
-- Pages: https://fovkotov.github.io/fina/
+Кабинет умеет переключаться на другой API и без пересборки: открыть
+`https://fovkotov.github.io/fina/?api=https://…` — адрес запомнится в браузере,
+`?api=` без значения возвращает всё обратно.
 
 ## Локальный запуск
 
-```bash
-# API + статика (нужен GITHUB_TOKEN)
-cd web && CLOUDFLARE=true NEXT_PUBLIC_API_BASE= npm run build:cf
-cd ../server && GITHUB_TOKEN=... npm run dev   # http://localhost:8787
+API (из `worker/`):
 
-# или только веб к локальному API
-cd web && NEXT_PUBLIC_API_BASE=http://localhost:8787 npm run dev
+```bash
+npm install
+npx wrangler dev             # http://localhost:8787
 ```
+
+Веб (из `web/`):
+
+```bash
+npm install
+NEXT_PUBLIC_API_BASE=http://localhost:8787 npm run dev   # http://localhost:3000
+```
+
+## Деплой
+
+```bash
+cd worker && npx wrangler deploy        # API
+git push origin main                    # веб уедет на Pages сам
+```
+
+Секрет обновляется так: `cd worker && npx wrangler secret put GITHUB_TOKEN`.
 
 ## Данные
 
