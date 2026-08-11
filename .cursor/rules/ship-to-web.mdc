@@ -1,5 +1,5 @@
 ---
-description: Каждое локальное изменение сразу выкатывается в веб (GitHub Pages + Cloudflare Worker)
+description: Каждое локальное изменение сразу выкатывается в прод
 alwaysApply: true
 ---
 
@@ -10,26 +10,22 @@ alwaysApply: true
 
 ## Куда что едет
 
-- Прод: **https://api.fovkotov.lol** — кабинет и API на одном Cloudflare Worker.
-  CI: `.github/workflows/worker.yml` (secrets `CLOUDFLARE_API_TOKEN` и
-  опционально `CLOUDFLARE_ACCOUNT_ID`). Вручную: `cd worker && npm run deploy`.
-- Запасной API: `*.workers.dev` (часто режется без VPN).
-- `web/**` → ещё и GitHub Pages по пушу в `main` (`.github/workflows/pages.yml`) —
-  запасной адрес https://fovkotov.github.io/fina, без VPN часто недоступен.
+- **Прод без VPN:** `server/` на Amvera / Timeweb Apps / VPS (не Cloudflare).
+  Docker: `server/Dockerfile`, корневой `docker-compose.yml`, `amvera.yml`.
+- Запас Cloudflare Worker: `cd worker && npm run deploy` (часто режется в РФ).
+- Запас GitHub Pages: пуш в `main` → `.github/workflows/pages.yml`.
 
 ## Порядок выкатки
 
-1. Проверь то, что менял:
-   - веб/воркер → `cd worker && npm run build:web && npx tsc --noEmit`
-   - только Pages-запас → `cd web && GITHUB_PAGES=true PAGES_BASE_PATH=/fina npm run build:pages`
-2. Если токен есть локально — можно `cd worker && npm run deploy` до пуша.
-3. `git add -A && git commit && git push origin main` — CI выкатит Worker и Pages.
-4. Убедись, что workflow позеленел: `gh run list --limit 2`. Упал — чини сразу.
+1. Проверь: `cd server && npm run typecheck` и при необходимости
+   `cd web && CLOUDFLARE=true npm run build:cf`.
+2. Задеплой `server` на PaaS/VPS (Amvera push / Timeweb / `./server/deploy.sh`).
+3. `git add -A && git commit && git push origin main`.
+4. Убедись, что Pages-workflow зелёный, если трогал `web/**`.
 
 ## Правила
 
 - Пуш только в `main`, веткам и PR тут делать нечего.
-- Красный билд не пушим: `build:pages` гоняет тот же `tsc`, что и CI.
-- В коммите едет всё дерево целиком (`git add -A`), включая чужие незавершённые
-  правки в рабочей копии — это осознанный выбор проекта.
+- Красный билд не пушим.
+- В коммите едет всё дерево целиком (`git add -A`).
 - Если `wrangler` ругается на TLS, повтори с `NODE_TLS_REJECT_UNAUTHORIZED=0`.

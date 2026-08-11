@@ -1,0 +1,6 @@
+# local env for docker compose / deploy — never commit
+server/.env
+server/.env.*
+server/public/
+server/dist/
+server/node_modules/

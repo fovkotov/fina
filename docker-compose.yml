@@ -1,0 +1,16 @@
+# Timeweb App Platform / Amvera / любой Docker-хостинг в РФ.
+# SSL и домен даёт платформа; Caddy на VPS не нужен.
+services:
+  fina:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${PORT:-80}:8787"
+    environment:
+      PORT: "8787"
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      FINA_GIST_ID: ${FINA_GIST_ID:-9ae03be0b8cb1a5a2d1818bd4492c8ea}
+      WEB_URL: ${WEB_URL:-https://api.fovkotov.lol}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://api.fovkotov.lol,https://app.fovkotov.lol}
