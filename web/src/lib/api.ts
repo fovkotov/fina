@@ -109,7 +109,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const timer = setTimeout(() => abort.abort(), REQUEST_TIMEOUT_MS);
   let res: Response;
   try {
-    res = await fetch(`${base}${path}`, { ...init, headers, signal: abort.signal });
+    res = await fetch(`${base}${path}`, {
+      cache: "no-store",
+      ...init,
+      headers,
+      signal: abort.signal,
+    });
   } catch (e) {
     // Сюда попадают только сетевые сбои: DNS, разрыв TLS, блокировка провайдером.
     const reason =
