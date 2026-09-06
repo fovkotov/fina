@@ -93,6 +93,10 @@ function otherMemberId(members: { id: string }[], currentId: string) {
   return members.find((m) => m.id !== currentId)?.id ?? "";
 }
 
+function memberIdByName(members: { id: string; name: string }[], name: string) {
+  return members.find((m) => m.name === name)?.id ?? "";
+}
+
 function txPartiesLabel(tx: Transaction) {
   if (tx.type === "transfer") {
     const from = tx.memberName ?? "участник";
@@ -640,10 +644,18 @@ export function FinaApp() {
                 onSpecialChange={(next) => {
                   setOpSpecial(next);
                   if (next === "transfer") {
+                    const members = summary?.members ?? [];
+                    const fromId = memberIdByName(members, NAMES[0]);
+                    const toId = memberIdByName(members, NAMES[1]);
+                    if (fromId && toId) {
+                      setOpMemberId(fromId);
+                      setOpToMemberId(toId);
+                      return;
+                    }
                     setOpToMemberId((to) =>
                       to && to !== opMemberId
                         ? to
-                        : otherMemberId(summary?.members ?? [], opMemberId),
+                        : otherMemberId(members, opMemberId),
                     );
                   }
                 }}
