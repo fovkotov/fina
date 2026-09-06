@@ -84,9 +84,28 @@ function applyApiFromUrl() {
   setApiBase(params.get("api"));
 }
 
-/** Внесения и списания принадлежат участнику, начисления — общие. */
+/** Внесения, списания и переводы принадлежат участнику; начисления — общие. */
 function needsMember(type: TransactionType) {
-  return type === "deposit" || type === "withdrawal";
+  return type === "deposit" || type === "withdrawal" || type === "transfer";
+}
+
+function otherMemberId(members: { id: string }[], currentId: string) {
+  return members.find((m) => m.id !== currentId)?.id ?? "";
+}
+
+function txPartiesLabel(tx: Transaction) {
+  if (tx.type === "transfer") {
+    const from = tx.memberName ?? "участник";
+    const to = tx.toMemberName ?? "участник";
+    return `${from} → ${to}`;
+  }
+  return tx.memberName ?? "";
+}
+
+function amountPrefix(type: TransactionType) {
+  if (type === "withdrawal") return "−";
+  if (type === "transfer") return "";
+  return "+";
 }
 
 /** Год в заголовке не пишем — его отбивает отдельная линия при смене. */
@@ -129,7 +148,8 @@ function groupByMonth(list: Transaction[]) {
       groups.set(key, group);
     }
     group.items.push(tx);
-    group.totalCents += tx.type === "withdrawal" ? -tx.amountCents : tx.amountCents;
+    if (tx.type === "withdrawal") group.totalCents -= tx.amountCents;
+    else if (tx.type !== "transfer") group.totalCents += tx.amountCents;
   }
   const sorted = [...groups.values()].sort((a, b) => b.key.localeCompare(a.key));
   /** Год пишем один раз — на границе, где список уходит в предыдущий. */
@@ -145,6 +165,7 @@ type EditDraft = {
   type: TransactionType;
   amount: string;
   memberId: string;
+  toMemberId: string;
   note: string;
   date: string;
   occurredAt: string;
@@ -179,6 +200,7 @@ export function FinaApp() {
   const [opSpecial, setOpSpecial] = useState<SpecialType | null>(null);
   const [opAmount, setOpAmount] = useState("");
   const [opMemberId, setOpMemberId] = useState("");
+  const [opToMemberId, setOpToMemberId] = useState("");
   const opTypeSeeded = useRef(false);
   const [shakeError, setShakeError] = useState(0);
   const [mounted, setMounted] = useState(false);
@@ -213,7 +235,9 @@ export function FinaApp() {
   /** Дефолты композера: участник — тот, кто вошёл; знак — как в его прошлой операции. */
   function seedOpDefaults(s: Summary, t: Transaction[]) {
     const me = savedMember();
-    setOpMemberId((prev) => prev || me?.id || s.members[0]?.id || "");
+    const fromId = me?.id || s.members[0]?.id || "";
+    setOpMemberId((prev) => prev || fromId);
+    setOpToMemberId((prev) => prev || otherMemberId(s.members, fromId));
     if (opTypeSeeded.current) return;
     opTypeSeeded.current = true;
     const last = t.find(
@@ -314,6 +338,8 @@ export function FinaApp() {
       type: tx.type,
       amount: String(tx.amountCents / 100),
       memberId: tx.memberId ?? "",
+      toMemberId:
+        tx.toMemberId ?? otherMemberId(summary?.members ?? [], tx.memberId ?? ""),
       note: tx.note ?? "",
       date: dateInputValue(tx.occurredAt),
       occurredAt: tx.occurredAt,
@@ -333,6 +359,13 @@ export function FinaApp() {
       flashError("Введи сумму");
       return;
     }
+    if (
+      editing.type === "transfer" &&
+      (!editing.memberId || editing.memberId === editing.toMemberId)
+    ) {
+      flashError("Выбери разных участников");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -341,6 +374,8 @@ export function FinaApp() {
         amountCents: Math.round(value * 100),
         note: editing.note,
         memberId: needsMember(editing.type) ? editing.memberId || null : null,
+        toMemberId:
+          editing.type === "transfer" ? editing.toMemberId || null : null,
         occurredAt: withDate(editing.occurredAt, editing.date),
       });
       cancelEdit();
@@ -404,15 +439,20 @@ export function FinaApp() {
       flashError("Введи сумму");
       return;
     }
+    const type = opSpecial ?? opType;
+    if (type === "transfer" && (!opMemberId || opMemberId === opToMemberId)) {
+      flashError("Выбери разных участников");
+      return;
+    }
     setLoading(true);
     setError(null);
-    const type = opSpecial ?? opType;
     try {
       await createTransaction({
         type,
         amountCents: value * 100,
         note: "",
         memberId: needsMember(type) ? opMemberId || null : null,
+        toMemberId: type === "transfer" ? opToMemberId || null : null,
       });
       setOpAmount("");
       // необычный тип — разовый выбор, следующая операция снова обычная
@@ -597,10 +637,21 @@ export function FinaApp() {
                 type={opType}
                 onTypeChange={setOpType}
                 special={opSpecial}
-                onSpecialChange={setOpSpecial}
+                onSpecialChange={(next) => {
+                  setOpSpecial(next);
+                  if (next === "transfer") {
+                    setOpToMemberId((to) =>
+                      to && to !== opMemberId
+                        ? to
+                        : otherMemberId(summary?.members ?? [], opMemberId),
+                    );
+                  }
+                }}
                 members={summary?.members ?? []}
                 memberId={opMemberId}
                 onMemberChange={setOpMemberId}
+                toMemberId={opToMemberId}
+                onToMemberChange={setOpToMemberId}
                 amount={opAmount}
                 onAmountChange={setOpAmount}
                 onSubmit={submitOp}
@@ -658,9 +709,20 @@ export function FinaApp() {
                             value={editing.type}
                             onChange={(e) => {
                               sfx("nav");
+                              const nextType = e.target.value as TransactionType;
+                              const toMemberId =
+                                nextType === "transfer" &&
+                                (!editing.toMemberId ||
+                                  editing.toMemberId === editing.memberId)
+                                  ? otherMemberId(
+                                      summary?.members ?? [],
+                                      editing.memberId,
+                                    )
+                                  : editing.toMemberId;
                               setEditing({
                                 ...editing,
-                                type: e.target.value as TransactionType,
+                                type: nextType,
+                                toMemberId,
                               });
                             }}
                           >
@@ -685,13 +747,51 @@ export function FinaApp() {
                         </div>
                         {needsMember(editing.type) && (
                           <div className="grid gap-2">
-                            <Label>Участник</Label>
+                            <Label>
+                              {editing.type === "transfer" ? "От кого" : "Участник"}
+                            </Label>
                             <select
                               className="field border-input bg-background h-10 rounded-md border px-3 text-base md:text-sm"
                               value={editing.memberId}
                               onChange={(e) => {
                                 sfx("nav");
-                                setEditing({ ...editing, memberId: e.target.value });
+                                const memberId = e.target.value;
+                                const toMemberId =
+                                  editing.type === "transfer" &&
+                                  memberId === editing.toMemberId
+                                    ? otherMemberId(
+                                        summary?.members ?? [],
+                                        memberId,
+                                      )
+                                    : editing.toMemberId;
+                                setEditing({ ...editing, memberId, toMemberId });
+                              }}
+                            >
+                              {(summary?.members ?? []).map((m) => (
+                                <option key={m.id} value={m.id}>
+                                  {m.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        {editing.type === "transfer" && (
+                          <div className="grid gap-2">
+                            <Label>Кому</Label>
+                            <select
+                              className="field border-input bg-background h-10 rounded-md border px-3 text-base md:text-sm"
+                              value={editing.toMemberId}
+                              onChange={(e) => {
+                                sfx("nav");
+                                const toMemberId = e.target.value;
+                                const memberId =
+                                  toMemberId === editing.memberId
+                                    ? otherMemberId(
+                                        summary?.members ?? [],
+                                        toMemberId,
+                                      )
+                                    : editing.memberId;
+                                setEditing({ ...editing, memberId, toMemberId });
                               }}
                             >
                               {(summary?.members ?? []).map((m) => (
@@ -759,9 +859,9 @@ export function FinaApp() {
                       <div className="w-0 min-w-0 flex-1">
                         <p className="truncate text-sm leading-tight font-medium">
                           {TYPE_LABELS[tx.type]}
-                          {tx.memberName && (
+                          {txPartiesLabel(tx) && (
                             <span className="text-muted-foreground font-normal">
-                              {` · ${tx.memberName}`}
+                              {` · ${txPartiesLabel(tx)}`}
                             </span>
                           )}
                         </p>
@@ -779,7 +879,7 @@ export function FinaApp() {
                           className={`row-amount text-sm font-semibold tabular-nums ${tx.type === "withdrawal" ? "text-destructive" : "text-foreground"}`}
                         >
                           <TextMorph as="span" locale="ru" duration={200}>
-                            {`${tx.type === "withdrawal" ? "−" : "+"}${formatMoney(tx.amountCents)}`}
+                            {`${amountPrefix(tx.type)}${formatMoney(tx.amountCents)}`}
                           </TextMorph>
                         </span>
                         <div className="row-actions flex items-center gap-0.5">

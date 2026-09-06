@@ -2,7 +2,8 @@ export type TransactionType =
   | "deposit"
   | "withdrawal"
   | "interest"
-  | "cashback";
+  | "cashback"
+  | "transfer";
 
 export type Member = {
   id: string;
@@ -33,6 +34,8 @@ export type Transaction = {
   memberId?: string | null;
   memberName?: string | null;
   memberAccent?: string | null;
+  toMemberId?: string | null;
+  toMemberName?: string | null;
   createdByName?: string | null;
 };
 
@@ -226,6 +229,7 @@ export function createTransaction(body: {
   amountCents: number;
   note: string;
   memberId?: string | null;
+  toMemberId?: string | null;
 }) {
   return request<{ transaction: Transaction; summary: Summary }>(
     "/api/transactions",
@@ -240,6 +244,7 @@ export function updateTransaction(
     amountCents?: number;
     note?: string;
     memberId?: string | null;
+    toMemberId?: string | null;
     occurredAt?: string;
   },
 ) {
@@ -294,4 +299,5 @@ export const TYPE_LABELS: Record<TransactionType, string> = {
   withdrawal: "Списание",
   interest: "Проценты",
   cashback: "Кэшбэк",
+  transfer: "Перевод",
 };

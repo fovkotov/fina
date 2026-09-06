@@ -10,11 +10,11 @@ import { TYPE_LABELS, type Member } from "@/lib/api";
 
 export type OpType = "deposit" | "withdrawal";
 
-/** Необычные типы: это начисления, у них нет знака и своего участника. */
-export type SpecialType = "cashback" | "interest";
+/** Необычные типы: начисления без знака, перевод — два участника вместо знака. */
+export type SpecialType = "cashback" | "interest" | "transfer";
 
 const QUICK_AMOUNTS = [1000, 2000, 5000];
-const SPECIAL_TYPES: SpecialType[] = ["cashback", "interest"];
+const SPECIAL_TYPES: SpecialType[] = ["cashback", "interest", "transfer"];
 
 export function digitsOf(value: string) {
   return value.replace(/\D/g, "");
@@ -26,6 +26,48 @@ export function formatAmountInput(value: string) {
   return digits.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
 
+function MemberAvatar({
+  member,
+  label,
+  onClick,
+}: {
+  member: Member | null;
+  label: string;
+  onClick: () => void;
+}) {
+  const avatar = member ? AVATARS[member.name] : undefined;
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={member?.name ?? undefined}
+      className="pressable size-[42px] shrink-0 overflow-hidden rounded-full"
+      data-cuelume-press={SFX.nav}
+      data-cuelume-release={SFX.release}
+      onClick={onClick}
+    >
+      {avatar ? (
+        <Image
+          key={member?.id}
+          className="swap-in size-[42px] object-cover"
+          src={avatar}
+          alt=""
+          width={42}
+          height={42}
+          priority
+        />
+      ) : (
+        <span
+          key={member?.id}
+          className="swap-in bg-secondary text-secondary-foreground flex size-[42px] items-center justify-center rounded-full text-sm font-medium"
+        >
+          {member?.name.slice(0, 1) ?? "?"}
+        </span>
+      )}
+    </button>
+  );
+}
+
 type Props = {
   type: OpType;
   onTypeChange: (type: OpType) => void;
@@ -34,6 +76,8 @@ type Props = {
   members: Member[];
   memberId: string;
   onMemberChange: (memberId: string) => void;
+  toMemberId: string;
+  onToMemberChange: (memberId: string) => void;
   amount: string;
   onAmountChange: (amount: string) => void;
   onSubmit: () => void;
@@ -48,20 +92,40 @@ export function TxComposer({
   members,
   memberId,
   onMemberChange,
+  toMemberId,
+  onToMemberChange,
   amount,
   onAmountChange,
   onSubmit,
   disabled,
 }: Props) {
+  const isTransfer = special === "transfer";
   const signType: OpType = special ? "deposit" : type;
-  const sign = signType === "withdrawal" ? "−" : "+";
-  const activeMember =
+  const sign = isTransfer ? "→" : signType === "withdrawal" ? "−" : "+";
+  const fromMember =
     members.find((m) => m.id === memberId) ?? members[0] ?? null;
-  const avatar = activeMember ? AVATARS[activeMember.name] : undefined;
+  const toMember =
+    members.find((m) => m.id === toMemberId) ??
+    members.find((m) => m.id !== fromMember?.id) ??
+    null;
+  const avatar = fromMember ? AVATARS[fromMember.name] : undefined;
+
+  function cycleSide(
+    currentId: string | undefined,
+    otherId: string | undefined,
+    setCurrent: (id: string) => void,
+    setOther: (id: string) => void,
+  ) {
+    if (members.length < 2) return;
+    const index = members.findIndex((m) => m.id === currentId);
+    const next = members[(Math.max(index, 0) + 1) % members.length];
+    setCurrent(next.id);
+    if (next.id === otherId && currentId) setOther(currentId);
+  }
 
   function nextMember() {
     if (members.length < 2) return;
-    const index = members.findIndex((m) => m.id === activeMember?.id);
+    const index = members.findIndex((m) => m.id === fromMember?.id);
     onMemberChange(members[(index + 1) % members.length].id);
   }
 
@@ -111,35 +175,50 @@ export function TxComposer({
 
       {/* Отступы по макету: иконки 42px вписаны с inset 16px, высота поля — 74px. */}
       <div className="bg-muted flex w-full items-center justify-between gap-3 rounded-[60px] p-[16px]">
-        <button
-          type="button"
-          aria-label={
-            special
-              ? TYPE_LABELS[special]
-              : type === "withdrawal"
-                ? "Списание"
-                : "Внесение"
-          }
-          /* Без круглой маски: у знака руки и ноги доходят до краёв картинки. */
-          className="pressable size-[42px] shrink-0"
-          data-cuelume-press={SFX.nav}
-          data-cuelume-release={SFX.release}
-          onClick={() => {
-            // у начисления знака нет: первое нажатие возвращает обычную операцию
-            if (special) return onSpecialChange(null);
-            onTypeChange(type === "deposit" ? "withdrawal" : "deposit");
-          }}
-        >
-          <Image
-            key={signType}
-            className="swap-in size-[42px]"
-            src={SIGN_IMAGES[signType]}
-            alt=""
-            width={42}
-            height={42}
-            priority
+        {isTransfer ? (
+          <MemberAvatar
+            member={fromMember}
+            label={`От ${fromMember?.name ?? "участника"}`}
+            onClick={() =>
+              cycleSide(
+                fromMember?.id,
+                toMember?.id,
+                onMemberChange,
+                onToMemberChange,
+              )
+            }
           />
-        </button>
+        ) : (
+          <button
+            type="button"
+            aria-label={
+              special
+                ? TYPE_LABELS[special]
+                : type === "withdrawal"
+                  ? "Списание"
+                  : "Внесение"
+            }
+            /* Без круглой маски: у знака руки и ноги доходят до краёв картинки. */
+            className="pressable size-[42px] shrink-0"
+            data-cuelume-press={SFX.nav}
+            data-cuelume-release={SFX.release}
+            onClick={() => {
+              // у начисления знака нет: первое нажатие возвращает обычную операцию
+              if (special) return onSpecialChange(null);
+              onTypeChange(type === "deposit" ? "withdrawal" : "deposit");
+            }}
+          >
+            <Image
+              key={signType}
+              className="swap-in size-[42px]"
+              src={SIGN_IMAGES[signType]}
+              alt=""
+              width={42}
+              height={42}
+              priority
+            />
+          </button>
+        )}
 
         <input
           value={amount}
@@ -156,34 +235,49 @@ export function TxComposer({
           className="placeholder:text-foreground/20 w-0 min-w-0 flex-1 bg-transparent text-center text-[22px] tabular-nums outline-none"
         />
 
-        <button
-          type="button"
-          aria-label={`Операция от ${activeMember?.name ?? "участника"}`}
-          title={activeMember?.name ?? undefined}
-          className="pressable size-[42px] shrink-0 overflow-hidden rounded-full"
-          data-cuelume-press={SFX.nav}
-          data-cuelume-release={SFX.release}
-          onClick={nextMember}
-        >
-          {avatar ? (
-            <Image
-              key={activeMember?.id}
-              className="swap-in size-[42px] object-cover"
-              src={avatar}
-              alt=""
-              width={42}
-              height={42}
-              priority
-            />
-          ) : (
-            <span
-              key={activeMember?.id}
-              className="swap-in bg-secondary text-secondary-foreground flex size-[42px] items-center justify-center rounded-full text-sm font-medium"
-            >
-              {activeMember?.name.slice(0, 1)}
-            </span>
-          )}
-        </button>
+        {isTransfer ? (
+          <MemberAvatar
+            member={toMember}
+            label={`Кому ${toMember?.name ?? "участнику"}`}
+            onClick={() =>
+              cycleSide(
+                toMember?.id,
+                fromMember?.id,
+                onToMemberChange,
+                onMemberChange,
+              )
+            }
+          />
+        ) : (
+          <button
+            type="button"
+            aria-label={`Операция от ${fromMember?.name ?? "участника"}`}
+            title={fromMember?.name ?? undefined}
+            className="pressable size-[42px] shrink-0 overflow-hidden rounded-full"
+            data-cuelume-press={SFX.nav}
+            data-cuelume-release={SFX.release}
+            onClick={nextMember}
+          >
+            {avatar ? (
+              <Image
+                key={fromMember?.id}
+                className="swap-in size-[42px] object-cover"
+                src={avatar}
+                alt=""
+                width={42}
+                height={42}
+                priority
+              />
+            ) : (
+              <span
+                key={fromMember?.id}
+                className="swap-in bg-secondary text-secondary-foreground flex size-[42px] items-center justify-center rounded-full text-sm font-medium"
+              >
+                {fromMember?.name.slice(0, 1)}
+              </span>
+            )}
+          </button>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-[6px]">
@@ -212,11 +306,13 @@ export function TxComposer({
           className="reveal-up mt-1 h-[74px] w-full rounded-[60px] text-[18px]"
           data-cuelume-press={SFX.primaryPress}
         >
-          {special
-            ? "Начислить"
-            : type === "withdrawal"
-              ? "Списать"
-              : "Внести"}
+          {special === "transfer"
+            ? "Перевести"
+            : special
+              ? "Начислить"
+              : type === "withdrawal"
+                ? "Списать"
+                : "Внести"}
         </Button>
       )}
     </form>

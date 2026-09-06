@@ -1,4 +1,4 @@
-export type TxType = "deposit" | "withdrawal" | "interest" | "cashback";
+export type TxType = "deposit" | "withdrawal" | "interest" | "cashback" | "transfer";
 
 export type Household = {
   id: string;
@@ -19,6 +19,8 @@ export type Transaction = {
   id: string;
   household_id: string;
   member_id: string | null;
+  /** Получатель перевода; у остальных типов пусто. */
+  to_member_id?: string | null;
   type: TxType;
   amount_cents: number;
   note: string;
@@ -331,9 +333,14 @@ export function getSummary(data: DbData, householdId: string) {
     .map((m) => {
       let balance = 0;
       for (const t of txs) {
-        if (t.member_id !== m.id) continue;
-        if (t.type === "deposit") balance += t.amount_cents;
-        if (t.type === "withdrawal") balance -= t.amount_cents;
+        if (t.type === "deposit" && t.member_id === m.id) {
+          balance += t.amount_cents;
+        } else if (t.type === "withdrawal" && t.member_id === m.id) {
+          balance -= t.amount_cents;
+        } else if (t.type === "transfer") {
+          if (t.member_id === m.id) balance -= t.amount_cents;
+          if (t.to_member_id === m.id) balance += t.amount_cents;
+        }
       }
       return { id: m.id, name: m.name, accent: m.accent, balanceCents: balance };
     })

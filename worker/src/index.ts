@@ -13,7 +13,53 @@ import {
   type TxType,
 } from "./db";
 
-const TX_TYPES: TxType[] = ["deposit", "withdrawal", "interest", "cashback"];
+const TX_TYPES: TxType[] = [
+  "deposit",
+  "withdrawal",
+  "interest",
+  "cashback",
+  "transfer",
+];
+
+function householdMember(
+  data: DbData,
+  householdId: string,
+  memberId: string | null | undefined,
+) {
+  if (!memberId) return null;
+  return (
+    data.members.find(
+      (m) => m.id === memberId && m.household_id === householdId,
+    ) ?? null
+  );
+}
+
+/** Внесения/списания — один участник; перевод — двое разных; начисления — никого. */
+function assignTxParties(
+  data: DbData,
+  householdId: string,
+  type: TxType,
+  fromId: string | null | undefined,
+  toId: string | null | undefined,
+): { memberId: string | null; toMemberId: string | null; error?: string } {
+  if (type === "deposit" || type === "withdrawal") {
+    const member = householdMember(data, householdId, fromId);
+    if (!member) return { memberId: null, toMemberId: null, error: "Участник не найден" };
+    return { memberId: member.id, toMemberId: null };
+  }
+  if (type === "transfer") {
+    const from = householdMember(data, householdId, fromId);
+    const to = householdMember(data, householdId, toId);
+    if (!from || !to) {
+      return { memberId: null, toMemberId: null, error: "Участник не найден" };
+    }
+    if (from.id === to.id) {
+      return { memberId: null, toMemberId: null, error: "Нельзя перевести себе" };
+    }
+    return { memberId: from.id, toMemberId: to.id };
+  }
+  return { memberId: null, toMemberId: null };
+}
 
 function corsHeaders(req: Request, env: Env): Record<string, string> {
   const origin = req.headers.get("origin") ?? "";
@@ -56,6 +102,7 @@ async function authorize(req: Request, env: Env) {
 
 function serializeTx(data: DbData, tx: DbData["transactions"][number]) {
   const member = data.members.find((x) => x.id === tx.member_id);
+  const toMember = data.members.find((x) => x.id === tx.to_member_id);
   const createdBy = data.members.find((x) => x.id === tx.created_by);
   return {
     id: tx.id,
@@ -67,6 +114,8 @@ function serializeTx(data: DbData, tx: DbData["transactions"][number]) {
     memberId: tx.member_id,
     memberName: member?.name ?? null,
     memberAccent: member?.accent ?? null,
+    toMemberId: tx.to_member_id ?? null,
+    toMemberName: toMember?.name ?? null,
     createdByName: createdBy?.name ?? null,
   };
 }
@@ -124,6 +173,7 @@ async function createTransaction(req: Request, env: Env) {
     amount?: number;
     note?: string;
     memberId?: string | null;
+    toMemberId?: string | null;
     occurredAt?: string;
   };
 
@@ -140,22 +190,25 @@ async function createTransaction(req: Request, env: Env) {
     return json(req, env, { error: "Сумма должна быть больше нуля" }, 400);
   }
 
-  const needsMember = type === "deposit" || type === "withdrawal";
-  let memberId = body.memberId ?? null;
-  if (needsMember) {
-    if (!memberId) memberId = auth.session.member_id;
-    const member = data.members.find(
-      (m) => m.id === memberId && m.household_id === auth.session.household_id,
-    );
-    if (!member) return json(req, env, { error: "Участник не найден" }, 400);
-  } else {
-    memberId = null;
-  }
+  const fromId =
+    body.memberId ??
+    (type === "deposit" || type === "withdrawal" || type === "transfer"
+      ? auth.session.member_id
+      : null);
+  const parties = assignTxParties(
+    data,
+    auth.session.household_id,
+    type,
+    fromId,
+    body.toMemberId,
+  );
+  if (parties.error) return json(req, env, { error: parties.error }, 400);
 
   const created = {
     id: newId(),
     household_id: auth.session.household_id,
-    member_id: memberId,
+    member_id: parties.memberId,
+    to_member_id: parties.toMemberId,
     type,
     amount_cents: amountCents,
     note: (body.note ?? "").trim(),
@@ -194,6 +247,7 @@ async function updateTransaction(req: Request, env: Env, id: string) {
     amount?: number;
     note?: string;
     memberId?: string | null;
+    toMemberId?: string | null;
     occurredAt?: string;
   };
 
@@ -225,17 +279,18 @@ async function updateTransaction(req: Request, env: Env, id: string) {
     tx.occurred_at = date.toISOString();
   }
 
-  // Участник нужен только внесениям и списаниям; у начислений он всегда пустой.
-  if (tx.type === "deposit" || tx.type === "withdrawal") {
-    const memberId = body.memberId !== undefined ? body.memberId : tx.member_id;
-    const member = data.members.find(
-      (m) => m.id === memberId && m.household_id === auth.session.household_id,
-    );
-    if (!member) return json(req, env, { error: "Участник не найден" }, 400);
-    tx.member_id = member.id;
-  } else {
-    tx.member_id = null;
-  }
+  const fromId = body.memberId !== undefined ? body.memberId : tx.member_id;
+  const toId = body.toMemberId !== undefined ? body.toMemberId : tx.to_member_id;
+  const parties = assignTxParties(
+    data,
+    auth.session.household_id,
+    tx.type,
+    fromId,
+    toId,
+  );
+  if (parties.error) return json(req, env, { error: parties.error }, 400);
+  tx.member_id = parties.memberId;
+  tx.to_member_id = parties.toMemberId;
 
   await saveDb(env, data);
 
