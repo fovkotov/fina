@@ -1,5 +1,6 @@
 "use client";
 
+import { useLayoutEffect, useRef } from "react";
 import Image from "next/image";
 import { X } from "lucide-react";
 import { TextMorph } from "torph/react";
@@ -99,6 +100,34 @@ export function TxComposer({
   onSubmit,
   disabled,
 }: Props) {
+  const amountRef = useRef<HTMLInputElement>(null);
+
+  function focusAmount() {
+    const el = amountRef.current;
+    if (!el) return;
+    el.focus();
+    const len = el.value.length;
+    try {
+      el.setSelectionRange(len, len);
+    } catch {
+      /* type=number и часть мобильных webview бросают */
+    }
+  }
+
+  // autoFocus на iOS часто молчит — дублируем фокус после гидрации и из bfcache.
+  useLayoutEffect(() => {
+    focusAmount();
+    const raf = requestAnimationFrame(focusAmount);
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) focusAmount();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, []);
+
   const isTransfer = special === "transfer";
   const signType: OpType = special ? "deposit" : type;
   const sign = isTransfer ? "→" : signType === "withdrawal" ? "−" : "+";
@@ -132,6 +161,7 @@ export function TxComposer({
   function applyQuick(value: number) {
     const current = Number(digitsOf(amount) || 0);
     onAmountChange(formatAmountInput(String(current + value)));
+    focusAmount();
   }
 
   return (
@@ -142,6 +172,7 @@ export function TxComposer({
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit();
+        focusAmount();
       }}
     >
       <div className="flex flex-wrap items-center gap-[6px]">
@@ -221,6 +252,7 @@ export function TxComposer({
         )}
 
         <input
+          ref={amountRef}
           value={amount}
           onChange={(e) => onAmountChange(formatAmountInput(e.target.value))}
           placeholder="скока"
@@ -230,6 +262,8 @@ export function TxComposer({
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
+          autoFocus
+          enterKeyHint="done"
           aria-label="Сумма"
           // w-0: без явной ширины поле держит интринсик ~20 символов и распирает страницу
           className="placeholder:text-foreground/20 w-0 min-w-0 flex-1 bg-transparent text-center text-[22px] tabular-nums outline-none"
