@@ -672,10 +672,10 @@ export function FinaApp() {
             </section>
           </div>
 
-          {/* Одной колонкой список идёт под композером — там его отделяет
-              такая же линия, как левые блоки друг от друга. */}
+          {/* На мобилке список сразу под композером, без второй линейки:
+              черта остаётся только между цифрами и полем. */}
           <div
-            className={`border-border/70 mt-4 border-t pt-8 lg:mt-0 lg:border-t-0 lg:pt-0 ${loading ? "content-busy" : "content-ready"}`}
+            className={`mt-8 lg:mt-0 ${loading ? "content-busy" : "content-ready"}`}
           >
             {months.map((month, i) => (
               /* Секции идут вплотную, воздух между месяцами даёт верхний
