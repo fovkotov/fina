@@ -311,7 +311,9 @@
 }
 
 .content-ready {
-  filter: blur(0);
+  /* none, не blur(0): нулевой blur всё равно создаёт containing block
+     и ломает position:sticky у заголовков месяцев. */
+  filter: none;
   opacity: 1;
   transition:
     filter 200ms ease,

@@ -689,21 +689,24 @@ export function FinaApp() {
                     <span className="border-border/70 flex-1 border-t" />
                   </div>
                 )}
-                {/* Первому заголовку верхний отступ не нужен: список и так
-                    начинается с него, а после линии года хватает короткого. */}
+                {/* Воздух между месяцами — снаружи плашки, чтобы она не
+                    растягивалась в высокий блок. sticky на обёртке: иначе
+                    плашка липнет только в пределах короткого родителя. */}
                 <div
-                  className={`border-border/70 bg-background sticky top-0 z-10 flex items-baseline justify-between gap-3 border-b pb-1.5 ${i === 0 ? "pt-0" : month.showYear ? "pt-4" : "pt-10"}`}
+                  className={`bg-background sticky top-0 z-10 ${i === 0 ? "pt-0" : month.showYear ? "pt-4" : "pt-10"}`}
                 >
-                  <h3 className="text-muted-foreground text-xs font-medium">
-                    {month.label}
-                  </h3>
-                  <p
-                    className={`text-xs font-medium tabular-nums ${month.totalCents < 0 ? "text-destructive/80" : "text-muted-foreground"}`}
-                  >
-                    <TextMorph as="span" locale="ru" duration={200}>
-                      {`${month.totalCents < 0 ? "−" : "+"}${formatMoney(Math.abs(month.totalCents))}`}
-                    </TextMorph>
-                  </p>
+                  <div className="bg-foreground/5 flex items-baseline justify-between gap-3 rounded-[4px] px-2 py-1.5">
+                    <h3 className="text-muted-foreground text-xs font-medium">
+                      {month.label}
+                    </h3>
+                    <p
+                      className={`text-xs font-medium tabular-nums ${month.totalCents < 0 ? "text-destructive/80" : "text-muted-foreground"}`}
+                    >
+                      <TextMorph as="span" locale="ru" duration={200}>
+                        {`${month.totalCents < 0 ? "−" : "+"}${formatMoney(Math.abs(month.totalCents))}`}
+                      </TextMorph>
+                    </p>
+                  </div>
                 </div>
 
                 {month.items.map((tx) =>
