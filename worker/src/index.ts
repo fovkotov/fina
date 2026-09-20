@@ -11,7 +11,7 @@ import {
   type DbData,
   type Env,
   type TxType,
-} from "./db";
+} from "./db.js";
 
 const TX_TYPES: TxType[] = [
   "deposit",
@@ -391,12 +391,15 @@ async function route(req: Request, env: Env): Promise<Response> {
   return json(req, env, { error: "Not found" }, 404);
 }
 
+/** Общий вход для обоих рантаймов: воркера Cloudflare и Node-функции Vercel. */
+export async function handleApiRequest(req: Request, env: Env): Promise<Response> {
+  try {
+    return await route(req, env);
+  } catch (e) {
+    return json(req, env, { error: e instanceof Error ? e.message : "Error" }, 500);
+  }
+}
+
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
-    try {
-      return await route(req, env);
-    } catch (e) {
-      return json(req, env, { error: e instanceof Error ? e.message : "Error" }, 500);
-    }
-  },
+  fetch: handleApiRequest,
 };

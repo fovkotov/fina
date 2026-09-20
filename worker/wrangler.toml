@@ -2,9 +2,10 @@ name = "fina-api"
 main = "src/index.ts"
 compatibility_date = "2025-06-01"
 
-# Свой домен вместо workers.dev: тот у российских операторов режется по SNI.
-# Старый адрес оставлен запасным — он ещё работает на домашнем интернете.
-routes = [{ pattern = "api.fovkotov.lol", custom_domain = true }]
+# Боевой api.fovkotov.lol уехал на Vercel: российские операторы режут Cloudflare
+# целиком, и с мобильного интернета воркер просто не отвечает. Здесь он остался
+# запасным аэродромом на случай, если Vercel окажется недоступен.
+routes = [{ pattern = "api-cf.fovkotov.lol", custom_domain = true }]
 workers_dev = true
 
 # GITHUB_TOKEN живёт в секретах: npx wrangler secret put GITHUB_TOKEN

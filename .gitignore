@@ -12,3 +12,4 @@ web/.env*.local
 # worker
 worker/node_modules
 worker/.wrangler
+worker/.vercel

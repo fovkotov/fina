@@ -31,7 +31,6 @@ import {
   type OpType,
   type SpecialType,
 } from "@/components/tx-composer";
-import { PreloadImages } from "@/components/preload-images";
 import {
   AlertDialog,
   AlertDialogClose,
@@ -624,8 +623,6 @@ export function FinaApp() {
     /* Фон кабинета ровный: карточек нет, зато липкий заголовок месяца может
        перекрывать строки непрозрачной подложкой того же цвета. */
     <div className="bg-background min-h-screen">
-      {/* Картинки композера — только после входа, чтобы не конкурировать с JS на сплэше. */}
-      <PreloadImages />
       <div className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-4 md:p-8">
         {error && (
           <div

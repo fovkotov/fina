@@ -9,9 +9,3 @@ export const SIGN_IMAGES = {
   deposit: `${BASE_PATH}/assets/sign-plus.png`,
   withdrawal: `${BASE_PATH}/assets/sign-minus.png`,
 };
-
-/** Знак и аватар рисуются по одному за раз, поэтому остальные догружаем заранее. */
-export const PRELOADED_IMAGES = [
-  ...Object.values(SIGN_IMAGES),
-  ...Object.values(AVATARS),
-];
