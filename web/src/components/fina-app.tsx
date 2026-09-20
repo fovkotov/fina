@@ -137,6 +137,61 @@ function noteWithoutMonth(note: string | undefined, iso: string) {
   return bare === nominative || bare === genitive ? "" : text;
 }
 
+function monthKeyOf(iso: string) {
+  const date = new Date(iso);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function calendarMonthKey(now = new Date()) {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Насколько цифра выросла за текущий календарный месяц — против конца прошлого. */
+function monthOverMonth(list: Transaction[], now = new Date()) {
+  const currentKey = calendarMonthKey(now);
+  const hasPreviousMonth = list.some((tx) => monthKeyOf(tx.occurredAt) < currentKey);
+  if (!hasPreviousMonth) return null;
+
+  const members: Record<string, number> = {};
+  let accrualsCents = 0;
+  for (const tx of list) {
+    if (monthKeyOf(tx.occurredAt) !== currentKey) continue;
+    if (tx.type === "interest" || tx.type === "cashback") {
+      accrualsCents += tx.amountCents;
+      continue;
+    }
+    if (tx.type === "deposit" && tx.memberId) {
+      members[tx.memberId] = (members[tx.memberId] ?? 0) + tx.amountCents;
+    } else if (tx.type === "withdrawal" && tx.memberId) {
+      members[tx.memberId] = (members[tx.memberId] ?? 0) - tx.amountCents;
+    } else if (tx.type === "transfer") {
+      if (tx.memberId) {
+        members[tx.memberId] = (members[tx.memberId] ?? 0) - tx.amountCents;
+      }
+      if (tx.toMemberId) {
+        members[tx.toMemberId] = (members[tx.toMemberId] ?? 0) + tx.amountCents;
+      }
+    }
+  }
+  return { members, accrualsCents };
+}
+
+function MomDelta({ cents }: { cents: number | null | undefined }) {
+  if (cents == null || cents === 0) return null;
+  const negative = cents < 0;
+  return (
+    <p
+      className={`mt-0.5 text-xs tabular-nums ${
+        negative
+          ? "text-rose-600/70 dark:text-rose-400/60"
+          : "text-emerald-600/70 dark:text-emerald-400/60"
+      }`}
+    >
+      {`${negative ? "−" : "+"}${formatMoney(Math.abs(cents))}`}
+    </p>
+  );
+}
+
 /** Операции по месяцам: свежие сверху, внутри месяца — порядок как пришёл из API. */
 function groupByMonth(list: Transaction[]) {
   const groups = new Map<
@@ -490,6 +545,7 @@ export function FinaApp() {
   }
 
   const months = useMemo(() => groupByMonth(transactions), [transactions]);
+  const mom = useMemo(() => monthOverMonth(transactions), [transactions]);
 
   if (!loggedIn) {
     return (
@@ -621,6 +677,7 @@ export function FinaApp() {
                         {moneyLabel(m.balanceCents ?? 0)}
                       </TextMorph>
                     </p>
+                    {!hideBalances && <MomDelta cents={mom?.members[m.id]} />}
                   </div>
                 ))}
               </div>
@@ -630,6 +687,7 @@ export function FinaApp() {
                   <TextMorph as="p" locale="ru" duration={240} className="font-medium tabular-nums">
                     {moneyLabel(summary?.accrualsCents ?? 0)}
                   </TextMorph>
+                  {!hideBalances && <MomDelta cents={mom?.accrualsCents} />}
                 </div>
               </div>
             </section>
