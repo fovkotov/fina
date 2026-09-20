@@ -180,7 +180,7 @@ function MomDelta({ cents }: { cents: number | null | undefined }) {
   const negative = cents < 0;
   return (
     <p
-      className={`mt-px text-xs tabular-nums ${
+      className={`mt-px text-xs font-medium tabular-nums ${
         negative
           ? "text-rose-600/70 dark:text-rose-400/60"
           : "text-emerald-600/70 dark:text-emerald-400/60"
