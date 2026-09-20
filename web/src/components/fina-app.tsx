@@ -196,7 +196,7 @@ function MomDelta({ cents }: { cents: number | null | undefined }) {
   const negative = cents < 0;
   return (
     <p
-      className={`mt-px text-xs font-medium tabular-nums ${
+      className={`mt-[3px] text-xs font-medium tabular-nums ${
         negative
           ? "text-rose-600/70 dark:text-rose-400/60"
           : "text-emerald-600/70 dark:text-emerald-400/60"
@@ -853,24 +853,17 @@ export function FinaApp() {
             className={`mt-8 lg:mt-0 ${loading ? "content-busy" : "content-ready"}`}
           >
             {months.map((month, i) => (
-              /* Секции идут вплотную, воздух между месяцами даёт верхний
-                 отступ заголовка: липкий заголовок держится до последней
-                 строки месяца, и следующий выталкивает его без зазора. */
+              /* Воздух после месяца — in-flow after:h-10, не pb: padding
+                 не держит sticky. Плашка живёт, пока не приедет следующая. */
               <section key={month.key} className="space-y-1">
-                {month.showYear && (
-                  <div className="text-muted-foreground flex items-center gap-3 pt-12 text-xs font-medium tabular-nums">
-                    <span className="border-border/70 flex-1 border-t" />
-                    {month.year}
-                    <span className="border-border/70 flex-1 border-t" />
-                  </div>
-                )}
-                {/* Воздух между месяцами — на нелипкой обёртке вместе со
-                    строками, чтобы sticky мог держаться до конца месяца,
-                    а pt-10 уезжал. -mx-2/px-2 как у строк — колонки совпадают. */}
                 <div
-                  className={`space-y-1 ${i === 0 ? "pt-0" : month.showYear ? "pt-4" : "pt-10"}`}
+                  className={`space-y-1 ${
+                    months[i + 1] && !months[i + 1].showYear
+                      ? "after:block after:h-10"
+                      : ""
+                  }`}
                 >
-                  <div className="bg-background sticky top-0 z-10 -mx-2">
+                  <div className="bg-background sticky top-2 z-10 -mx-2 shadow-[0_-8px_0_0_var(--background)]">
                     <div className="bg-muted flex items-baseline justify-between gap-3 rounded-lg px-2 py-1.5">
                       <h3 className="text-muted-foreground text-xs font-medium">
                         {month.label}
@@ -1097,6 +1090,13 @@ export function FinaApp() {
                     </div>
                   ),
                 )}
+                  {months[i + 1]?.showYear && (
+                    <div className="text-muted-foreground flex items-center gap-3 pt-12 pb-4 text-xs font-medium tabular-nums">
+                      <span className="border-border/70 flex-1 border-t" />
+                      {months[i + 1]?.year}
+                      <span className="border-border/70 flex-1 border-t" />
+                    </div>
+                  )}
                 </div>
               </section>
             ))}
