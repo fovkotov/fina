@@ -39,10 +39,24 @@ export type Transaction = {
   createdByName?: string | null;
 };
 
-/** Базовый URL API (Cloudflare Worker). Пусто — значит тот же origin. */
+/** Базовый URL API. Пусто — значит тот же origin. */
 const DEFAULT_API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "").replace(/\/$/, "");
 const API_BASE_KEY = "fina-api-base";
 const REQUEST_TIMEOUT_MS = 15_000;
+const PROBE_TIMEOUT_MS = 6_000;
+
+/**
+ * Один и тот же кабинет живёт сразу на четырёх адресах, потому что российские
+ * операторы режут то Cloudflare, то кастомные домены Vercel — и у каждой сети
+ * свой набор живых. Порядок тут ни на что не влияет: побеждает первый, кто
+ * ответит на /api/health, а победитель запоминается до первого сбоя.
+ */
+const API_BASES = [
+  DEFAULT_API_BASE,
+  "https://fina-api-orpin.vercel.app",
+  "https://api-cf.fovkotov.lol",
+  "https://fina-api.fovkotov.workers.dev",
+].filter((base, i, all) => base && all.indexOf(base) === i);
 
 /**
  * Приватный режим Safari умеет ронять localStorage — тогда живём в памяти:
@@ -77,8 +91,8 @@ const store = {
 };
 
 /**
- * Домен воркера у части операторов недоступен, поэтому запасной адрес можно
- * подставить через `?api=https://...` — он запоминается в localStorage.
+ * Адрес, выбранный перебором или руками через `?api=https://...`; он же лежит
+ * в localStorage, чтобы следующий запуск не тратил время на проверку заново.
  */
 export function apiBase() {
   return store.get(API_BASE_KEY)?.replace(/\/$/, "") || DEFAULT_API_BASE;
@@ -87,6 +101,47 @@ export function apiBase() {
 export function setApiBase(url: string | null) {
   if (url) store.set(API_BASE_KEY, url.replace(/\/$/, ""));
   else store.remove(API_BASE_KEY);
+}
+
+/** Пингуем всех разом: ждать их по очереди — это минуты на мёртвой сети. */
+async function probeApiBase(): Promise<string> {
+  const attempts = API_BASES.map(async (base) => {
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), PROBE_TIMEOUT_MS);
+    try {
+      const res = await fetch(`${base}/api/health`, { signal: abort.signal });
+      if (!res.ok) throw new Error(`${hostOf(base)}: ${res.status}`);
+      return base;
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+  try {
+    return await Promise.any(attempts);
+  } catch {
+    const hosts = API_BASES.map(hostOf).join(", ");
+    throw new Error(
+      `Ни один сервер не ответил (${hosts}). Дело не в коде или PIN — эта сеть ` +
+        `не пускает ни к одному из них. Попробуй другой Wi-Fi или VPN.`,
+    );
+  }
+}
+
+let probing: Promise<string> | null = null;
+
+/** Запомненный адрес важнее перебора, иначе каждый старт стоил бы лишних запросов. */
+async function currentBase(): Promise<string> {
+  const saved = store.get(API_BASE_KEY)?.replace(/\/$/, "");
+  if (saved) return saved;
+  probing ??= probeApiBase()
+    .then((base) => {
+      setApiBase(base);
+      return base;
+    })
+    .finally(() => {
+      probing = null;
+    });
+  return probing;
 }
 
 function token() {
@@ -101,29 +156,32 @@ function hostOf(base: string) {
   }
 }
 
+async function send(path: string, init: RequestInit, base: string) {
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(`${base}${path}`, { ...init, signal: abort.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Content-Type", "application/json");
   const t = token();
   if (t) headers.set("Authorization", `Bearer ${t}`);
 
-  const base = apiBase();
-  const abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(), REQUEST_TIMEOUT_MS);
+  // Поиск живого адреса кидает своё сообщение — второй заход тут не нужен.
+  const base = await currentBase();
   let res: Response;
   try {
-    res = await fetch(`${base}${path}`, { ...init, headers, signal: abort.signal });
-  } catch (e) {
-    // Сюда попадают только сетевые сбои: DNS, разрыв TLS, блокировка провайдером.
-    const reason =
-      e instanceof Error && e.name === "AbortError"
-        ? "не ответил за 15 секунд"
-        : "недоступен";
-    throw new Error(
-      `Сервер ${hostOf(base)} ${reason}. Дело не в коде или PIN — эта сеть до него не достучалась. Попробуй другой Wi-Fi, мобильный интернет или VPN.`,
-    );
-  } finally {
-    clearTimeout(timer);
+    res = await send(path, { ...init, headers }, base);
+  } catch {
+    // Сетевой сбой: DNS, разрыв TLS, блокировка провайдером. Адрес мог быть
+    // жив вчера и умереть сегодня, поэтому забываем его и ищем заново.
+    setApiBase(null);
+    res = await send(path, { ...init, headers }, await currentBase());
   }
 
   if (!res.ok) {
