@@ -160,6 +160,7 @@ async function login(req: Request, env: Env) {
     member: { id: member.id, name: member.name, accent: member.accent },
     summary: getSummary(data, household.id),
     transactions: txs.map((t) => serializeTx(data, t)),
+    rev: data.rev ?? 0,
   });
 }
 
@@ -227,6 +228,7 @@ async function createTransaction(req: Request, env: Env) {
     {
       transaction: serializeTx(data, created),
       summary: getSummary(data, auth.session.household_id),
+      rev: data.rev ?? 0,
     },
     201,
   );
@@ -297,6 +299,7 @@ async function updateTransaction(req: Request, env: Env, id: string) {
   return json(req, env, {
     transaction: serializeTx(data, tx),
     summary: getSummary(data, auth.session.household_id),
+    rev: data.rev ?? 0,
   });
 }
 
@@ -314,6 +317,7 @@ async function deleteTransaction(req: Request, env: Env, id: string) {
   return json(req, env, {
     ok: true,
     summary: getSummary(data, auth.session.household_id),
+    rev: data.rev ?? 0,
   });
 }
 
@@ -349,6 +353,7 @@ async function route(req: Request, env: Env): Promise<Response> {
       transactions: listTransactions(data, householdId).map((t) =>
         serializeTx(data, t),
       ),
+      rev: data.rev ?? 0,
     });
   }
 

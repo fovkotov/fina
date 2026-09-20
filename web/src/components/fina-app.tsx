@@ -751,7 +751,7 @@ export function FinaApp() {
                   className={`space-y-1 ${i === 0 ? "pt-0" : month.showYear ? "pt-4" : "pt-10"}`}
                 >
                   <div className="bg-background sticky top-0 z-10 -mx-2">
-                    <div className="bg-muted flex items-baseline justify-between gap-3 rounded-[4px] px-2 py-1.5">
+                    <div className="bg-muted flex items-baseline justify-between gap-3 rounded-lg px-2 py-1.5">
                       <h3 className="text-muted-foreground text-xs font-medium">
                         {month.label}
                       </h3>

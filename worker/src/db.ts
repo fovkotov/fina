@@ -42,6 +42,8 @@ export type DbData = {
   members: Member[];
   transactions: Transaction[];
   sessions: Session[];
+  /** Счётчик записей. Клиент по нему отличает свежий ответ от отставшего. */
+  rev?: number;
 };
 
 export type Env = {
@@ -53,9 +55,14 @@ export type Env = {
 
 const DEFAULT_GIST_ID = "9ae03be0b8cb1a5a2d1818bd4492c8ea";
 const GIST_FILE = "fina-db.json";
-/** Короткий TTL: между вкладками данные свежие, а GitHub не дёргаем на каждый клик. */
-const MEMORY_TTL_MS = 30_000;
-const CACHE_TTL_SECONDS = 30;
+/**
+ * Кэш тут только чтобы склеить всплеск параллельных запросов, а не чтобы жить
+ * минутами. На Vercel каждый инстанс кэширует отдельно, так что долгий TTL
+ * означал бы ровно одно: чтение с соседнего инстанса не видит только что
+ * записанную операцию.
+ */
+const MEMORY_TTL_MS = 2_000;
+const CACHE_TTL_SECONDS = 5;
 const SESSION_DAYS = 180;
 
 type MemoryCache = {
@@ -221,6 +228,7 @@ export async function saveDb(env: Env, data: DbData): Promise<void> {
   // Сессии в gist больше не пишем на логин — подчищаем хвост, чтобы PATCH был легче.
   const now = Date.now();
   data.sessions = data.sessions.filter((s) => new Date(s.expires_at).getTime() > now);
+  data.rev = (data.rev ?? 0) + 1;
 
   const res = await fetch(gistUrl(env), {
     method: "PATCH",
