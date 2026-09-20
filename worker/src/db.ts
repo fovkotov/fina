@@ -55,23 +55,14 @@ export type Env = {
 
 const DEFAULT_GIST_ID = "9ae03be0b8cb1a5a2d1818bd4492c8ea";
 const GIST_FILE = "fina-db.json";
-/**
- * Кэш тут только чтобы склеить всплеск параллельных запросов, а не чтобы жить
- * минутами. На Vercel каждый инстанс кэширует отдельно, так что долгий TTL
- * означал бы ровно одно: чтение с соседнего инстанса не видит только что
- * записанную операцию.
- */
-const MEMORY_TTL_MS = 2_000;
-const CACHE_TTL_SECONDS = 5;
 const SESSION_DAYS = 180;
 
-type MemoryCache = {
-  gistId: string;
-  data: DbData;
-  loadedAt: number;
-};
-
-let memoryCache: MemoryCache | null = null;
+/**
+ * Базу между запросами не кэшируем. Инстансов много — и на Vercel, и по колокациям
+ * Cloudflare, — а кэш у каждого свой: сохранил операцию на одном, перечитал с
+ * другого и увидел состояние до записи. Именно из-за этого приходилось делать
+ * операцию дважды. Склеиваем только по-настоящему параллельные чтения.
+ */
 let inflightLoad: Promise<DbData> | null = null;
 
 function hex(bytes: Uint8Array): string {
@@ -128,50 +119,8 @@ function gistUrl(env: Env): string {
   return `https://api.github.com/gists/${gistIdOf(env)}`;
 }
 
-function cacheRequest(env: Env): Request {
-  // Свой origin — ключ только для caches.default, наружу не ходит.
-  return new Request(`https://fina-db.internal/gist/${gistIdOf(env)}`);
-}
-
 function cloneDb(data: DbData): DbData {
   return JSON.parse(JSON.stringify(data)) as DbData;
-}
-
-function remember(env: Env, data: DbData) {
-  memoryCache = { gistId: gistIdOf(env), data: cloneDb(data), loadedAt: Date.now() };
-}
-
-async function putEdgeCache(env: Env, data: DbData) {
-  try {
-    const body = JSON.stringify(data);
-    const res = new Response(body, {
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": `public, max-age=${CACHE_TTL_SECONDS}`,
-      },
-    });
-    await caches.default.put(cacheRequest(env), res);
-  } catch {
-    /* Cache API может быть недоступен в некоторых окружениях — память всё равно есть. */
-  }
-}
-
-async function readEdgeCache(env: Env): Promise<DbData | null> {
-  try {
-    const hit = await caches.default.match(cacheRequest(env));
-    if (!hit) return null;
-    return (await hit.json()) as DbData;
-  } catch {
-    return null;
-  }
-}
-
-async function dropEdgeCache(env: Env) {
-  try {
-    await caches.default.delete(cacheRequest(env));
-  } catch {
-    /* ignore */
-  }
 }
 
 async function fetchGistDb(env: Env): Promise<DbData> {
@@ -194,29 +143,9 @@ async function fetchGistDb(env: Env): Promise<DbData> {
 }
 
 export async function loadDb(env: Env): Promise<DbData> {
-  const gistId = gistIdOf(env);
-  if (
-    memoryCache &&
-    memoryCache.gistId === gistId &&
-    Date.now() - memoryCache.loadedAt < MEMORY_TTL_MS
-  ) {
-    return cloneDb(memoryCache.data);
-  }
-
   if (inflightLoad) return cloneDb(await inflightLoad);
 
-  inflightLoad = (async () => {
-    const cached = await readEdgeCache(env);
-    if (cached) {
-      remember(env, cached);
-      return cached;
-    }
-    const fresh = await fetchGistDb(env);
-    remember(env, fresh);
-    await putEdgeCache(env, fresh);
-    return fresh;
-  })();
-
+  inflightLoad = fetchGistDb(env);
   try {
     return cloneDb(await inflightLoad);
   } finally {
@@ -238,12 +167,8 @@ export async function saveDb(env: Env, data: DbData): Promise<void> {
     }),
   });
   if (!res.ok) {
-    memoryCache = null;
-    await dropEdgeCache(env);
     throw new Error(`Failed to save DB: ${res.status} ${await res.text()}`);
   }
-  remember(env, data);
-  await putEdgeCache(env, data);
 }
 
 function b64url(bytes: ArrayBuffer | Uint8Array): string {

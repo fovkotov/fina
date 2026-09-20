@@ -37,7 +37,56 @@ export type Transaction = {
   toMemberId?: string | null;
   toMemberName?: string | null;
   createdByName?: string | null;
+  /** Операция уже на экране, но ещё едет на сервер. Только на клиенте. */
+  pending?: boolean;
 };
+
+/** Порядок как в API: свежие сверху. Локальные вставки должны его повторять. */
+export function sortTransactions(list: Transaction[]) {
+  return [...list].sort(
+    (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
+  );
+}
+
+/**
+ * Повтор серверного getSummary: пока ответ едет, цифры считает клиент по тому же
+ * правилу. Любое расхождение формул сразу увидят как прыжок суммы после сохранения.
+ */
+export function recomputeSummary(base: Summary, list: Transaction[]): Summary {
+  let contributions = 0;
+  let interest = 0;
+  let cashback = 0;
+  for (const t of list) {
+    if (t.type === "deposit") contributions += t.amountCents;
+    else if (t.type === "withdrawal") contributions -= t.amountCents;
+    else if (t.type === "interest") interest += t.amountCents;
+    else if (t.type === "cashback") cashback += t.amountCents;
+  }
+
+  const members = base.members.map((m) => {
+    let balance = 0;
+    for (const t of list) {
+      if (t.type === "deposit" && t.memberId === m.id) balance += t.amountCents;
+      else if (t.type === "withdrawal" && t.memberId === m.id) balance -= t.amountCents;
+      else if (t.type === "transfer") {
+        if (t.memberId === m.id) balance -= t.amountCents;
+        if (t.toMemberId === m.id) balance += t.amountCents;
+      }
+    }
+    return { ...m, balanceCents: balance };
+  });
+
+  const accrualsCents = interest + cashback;
+  return {
+    ...base,
+    totalCents: contributions + accrualsCents,
+    contributionsCents: contributions,
+    interestCents: interest,
+    cashbackCents: cashback,
+    accrualsCents,
+    members,
+  };
+}
 
 /** Базовый URL API. Пусто — значит тот же origin. */
 const DEFAULT_API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "").replace(/\/$/, "");
@@ -203,6 +252,7 @@ export async function login(inviteCode: string, pin: string, memberName: string)
     member: Member;
     summary: Summary;
     transactions?: Transaction[];
+    rev?: number;
   }>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ inviteCode, pin, memberName }),
@@ -235,13 +285,18 @@ export function savedMember(): Member | null {
 const BOOTSTRAP_KEY = "bootstrap";
 
 /** Последний удачный кабинет — чтобы открыть UI сразу, не дожидаясь сети. */
-export function saveBootstrapCache(summary: Summary, transactions: Transaction[]) {
-  store.set(BOOTSTRAP_KEY, JSON.stringify({ summary, transactions }));
+export function saveBootstrapCache(
+  summary: Summary,
+  transactions: Transaction[],
+  rev: number,
+) {
+  store.set(BOOTSTRAP_KEY, JSON.stringify({ summary, transactions, rev }));
 }
 
 export function readBootstrapCache(): {
   summary: Summary;
   transactions: Transaction[];
+  rev: number;
 } | null {
   const raw = store.get(BOOTSTRAP_KEY);
   if (!raw) return null;
@@ -249,9 +304,14 @@ export function readBootstrapCache(): {
     const data = JSON.parse(raw) as {
       summary?: Summary;
       transactions?: Transaction[];
+      rev?: number;
     };
     if (!data?.summary || !Array.isArray(data.transactions)) return null;
-    return { summary: data.summary, transactions: data.transactions };
+    return {
+      summary: data.summary,
+      transactions: data.transactions,
+      rev: data.rev ?? 0,
+    };
   } catch {
     return null;
   }
@@ -267,9 +327,11 @@ export async function fetchTransactions() {
 /** Старт кабинета одним запросом — без параллельных loadDb на воркере. */
 export async function fetchBootstrap() {
   try {
-    return await request<{ summary: Summary; transactions: Transaction[] }>(
-      "/api/bootstrap",
-    );
+    return await request<{
+      summary: Summary;
+      transactions: Transaction[];
+      rev?: number;
+    }>("/api/bootstrap");
   } catch (e) {
     // Пока новый воркер не выкатили — собираем теми же двумя эндпоинтами.
     const message = e instanceof Error ? e.message : "";
@@ -278,7 +340,7 @@ export async function fetchBootstrap() {
       fetchSummary(),
       fetchTransactions(),
     ]);
-    return { summary, transactions };
+    return { summary, transactions, rev: undefined };
   }
 }
 
@@ -289,7 +351,7 @@ export function createTransaction(body: {
   memberId?: string | null;
   toMemberId?: string | null;
 }) {
-  return request<{ transaction: Transaction; summary: Summary }>(
+  return request<{ transaction: Transaction; summary: Summary; rev?: number }>(
     "/api/transactions",
     { method: "POST", body: JSON.stringify(body) },
   );
@@ -306,16 +368,17 @@ export function updateTransaction(
     occurredAt?: string;
   },
 ) {
-  return request<{ transaction: Transaction; summary: Summary }>(
+  return request<{ transaction: Transaction; summary: Summary; rev?: number }>(
     `/api/transactions/${id}`,
     { method: "PATCH", body: JSON.stringify(body) },
   );
 }
 
 export function deleteTransaction(id: string) {
-  return request<{ ok: boolean; summary: Summary }>(`/api/transactions/${id}`, {
-    method: "DELETE",
-  });
+  return request<{ ok: boolean; summary: Summary; rev?: number }>(
+    `/api/transactions/${id}`,
+    { method: "DELETE" },
+  );
 }
 
 export function fetchShare() {

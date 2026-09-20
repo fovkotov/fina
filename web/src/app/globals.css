@@ -322,7 +322,18 @@
 
 /* —— Строка операции: сумма и действия меняются местами —— */
 .tx-row {
-  transition: background-color 160ms ease;
+  transition:
+    background-color 160ms ease,
+    opacity 200ms var(--ease-out);
+}
+
+/* Операция уже посчитана и на экране, но ещё едет на сервер: правки подождут. */
+.tx-row[data-pending="true"] {
+  opacity: 0.55;
+}
+
+.tx-row[data-pending="true"] .row-actions {
+  display: none;
 }
 
 @media (hover: none) {

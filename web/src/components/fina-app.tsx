@@ -15,10 +15,12 @@ import {
   login,
   logout,
   readBootstrapCache,
+  recomputeSummary,
   saveBootstrapCache,
   savedMember,
   savedToken,
   setApiBase,
+  sortTransactions,
   updateTransaction,
   type Summary,
   type Transaction,
@@ -94,6 +96,20 @@ function otherMemberId(members: { id: string }[], currentId: string) {
 
 function memberIdByName(members: { id: string; name: string }[], name: string) {
   return members.find((m) => m.name === name)?.id ?? "";
+}
+
+/** Имя и цвет участника: строка рисуется до ответа сервера, подставить надо самим. */
+function memberFacts(
+  members: { id: string; name: string; accent: string }[],
+  id: string | null | undefined,
+) {
+  const member = members.find((m) => m.id === id);
+  return { name: member?.name ?? null, accent: member?.accent ?? null };
+}
+
+/** Временный id живёт, пока операция едет: по нему же строку и заменим ответом. */
+function draftId() {
+  return `draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function txPartiesLabel(tx: Transaction) {
@@ -247,8 +263,32 @@ function withDate(iso: string, value: string) {
 
 export function FinaApp() {
   const [loggedIn, setLoggedIn] = useState(false);
-  const [summary, setSummary] = useState<Summary | null>(null);
+  /** С сервера берём только неизменяемую часть: кто участники и как зовут кабинет. */
+  const [summaryBase, setSummaryBase] = useState<Summary | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  /** Версия данных на сервере: отставший фоновый ответ не должен затирать свежий. */
+  const rev = useRef(0);
+  /**
+   * Экран больше не блокируется на время записи, так что накликать две операции
+   * подряд — обычное дело. Но сохранение в gist это «прочитал-изменил-записал»:
+   * уйдя параллельно, второй запрос затрёт первый. Поэтому на сеть — по одной.
+   */
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+
+  function enqueue<T>(task: () => Promise<T>): Promise<T> {
+    const next = queue.current.then(task, task);
+    queue.current = next.catch(() => undefined);
+    return next;
+  }
+
+  /**
+   * Итоги считаем из списка операций, а не берём готовыми из ответа. Иначе
+   * оптимистичная строка уже на экране, а сумма над ней ещё старая.
+   */
+  const summary = useMemo(
+    () => (summaryBase ? recomputeSummary(summaryBase, transactions) : null),
+    [summaryBase, transactions],
+  );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [inviteCode, setInviteCode] = useState("FINA26");
@@ -281,7 +321,8 @@ export function FinaApp() {
     if (savedMember() && savedToken()) {
       const cached = readBootstrapCache();
       if (cached) {
-        setSummary(cached.summary);
+        rev.current = cached.rev;
+        setSummaryBase(cached.summary);
         setTransactions(cached.transactions);
         seedOpDefaults(cached.summary, cached.transactions);
       }
@@ -289,6 +330,16 @@ export function FinaApp() {
       void refresh({ background: Boolean(cached), silent: Boolean(cached) });
     }
   }, []);
+
+  /**
+   * В кэш кладём только подтверждённое: иначе после перезапуска на экране
+   * висела бы операция, которая на сервер так и не доехала.
+   */
+  useEffect(() => {
+    if (!summary) return;
+    if (transactions.some((t) => t.pending)) return;
+    saveBootstrapCache(summary, transactions, rev.current);
+  }, [summary, transactions]);
 
   /** Дефолты композера: участник — тот, кто вошёл; знак — как в его прошлой операции. */
   function seedOpDefaults(s: Summary, t: Transaction[]) {
@@ -317,11 +368,16 @@ export function FinaApp() {
     if (!background) setLoading(true);
     if (!opts?.silent) setError(null);
     try {
-      const { summary: s, transactions: t } = await fetchBootstrap();
-      setSummary(s);
-      setTransactions(t);
+      const { summary: s, transactions: t, rev: serverRev } = await fetchBootstrap();
+      // Ответить мог инстанс с отставшим кэшем — тогда наши данные новее.
+      if (serverRev != null && serverRev < rev.current) return;
+      if (serverRev != null) rev.current = serverRev;
+      setSummaryBase(s);
+      // Ещё не долетевшие операции с экрана не убираем.
+      setTransactions((prev) =>
+        sortTransactions([...t, ...prev.filter((x) => x.pending)]),
+      );
       seedOpDefaults(s, t);
-      saveBootstrapCache(s, t);
     } catch (e) {
       // Кэш уже на экране — сетевой сбой фоном не перекрываем баннером.
       if (!opts?.silent) {
@@ -348,14 +404,14 @@ export function FinaApp() {
     setPressingId(null);
   }
 
-  function onRowPointerDown(e: React.PointerEvent, id: string) {
-    if (e.pointerType === "mouse") return;
+  function onRowPointerDown(e: React.PointerEvent, tx: Transaction) {
+    if (e.pointerType === "mouse" || tx.pending) return;
     cancelLongPress();
-    setPressingId(id);
+    setPressingId(tx.id);
     const timer = window.setTimeout(() => {
       longPress.current = null;
       setPressingId(null);
-      setRevealedId(id);
+      setRevealedId(tx.id);
       navigator.vibrate?.(8);
       sfx("nav");
     }, 420);
@@ -389,7 +445,12 @@ export function FinaApp() {
     };
   }, [revealedId]);
 
+  /**
+   * Пока ответ не пришёл, у строки нет серверного id — править и удалять
+   * такую нечего, сервер её ещё не знает.
+   */
   function startEdit(tx: Transaction) {
+    if (tx.pending) return;
     setRevealedId(null);
     setEditing({
       id: tx.id,
@@ -424,46 +485,79 @@ export function FinaApp() {
       flashError("Выбери разных участников");
       return;
     }
-    setLoading(true);
+    const id = editing.id;
+    const patch = {
+      type: editing.type,
+      amountCents: Math.round(value * 100),
+      note: editing.note,
+      memberId: needsMember(editing.type) ? editing.memberId || null : null,
+      toMemberId: editing.type === "transfer" ? editing.toMemberId || null : null,
+      occurredAt: withDate(editing.occurredAt, editing.date),
+    };
+    const members = summary?.members ?? [];
+    const from = memberFacts(members, patch.memberId);
+    const to = memberFacts(members, patch.toMemberId);
+    const previous = transactions.find((t) => t.id === id);
+
+    setTransactions((prev) =>
+      sortTransactions(
+        prev.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                ...patch,
+                memberName: from.name,
+                memberAccent: from.accent,
+                toMemberName: to.name,
+                pending: true,
+              }
+            : t,
+        ),
+      ),
+    );
+    cancelEdit();
     setError(null);
+    sfx("success");
+
     try {
-      await updateTransaction(editing.id, {
-        type: editing.type,
-        amountCents: Math.round(value * 100),
-        note: editing.note,
-        memberId: needsMember(editing.type) ? editing.memberId || null : null,
-        toMemberId:
-          editing.type === "transfer" ? editing.toMemberId || null : null,
-        occurredAt: withDate(editing.occurredAt, editing.date),
-      });
-      cancelEdit();
-      sfx("success");
-      await refresh();
+      const res = await enqueue(() => updateTransaction(id, patch));
+      rev.current = Math.max(rev.current, res.rev ?? 0);
+      setSummaryBase(res.summary);
+      setTransactions((prev) =>
+        sortTransactions(prev.map((t) => (t.id === id ? res.transaction : t))),
+      );
     } catch (err) {
+      if (previous) {
+        setTransactions((prev) =>
+          sortTransactions(prev.map((t) => (t.id === id ? previous : t))),
+        );
+      }
       flashError(err instanceof Error ? err.message : "Не удалось сохранить");
-    } finally {
-      setLoading(false);
     }
   }
 
   /** Удаление необратимо, поэтому идёт через попап подтверждения. */
   function askRemove(tx: Transaction) {
+    if (tx.pending) return;
     setRevealedId(null);
     setPendingDelete(tx);
   }
 
   async function removeTx(id: string) {
-    setLoading(true);
+    const previous = transactions.find((t) => t.id === id);
+    if (!previous) return;
     setError(null);
     setPendingDelete(null);
+    if (editing?.id === id) cancelEdit();
+    setTransactions((prev) => prev.filter((t) => t.id !== id));
+
     try {
-      await deleteTransaction(id);
-      if (editing?.id === id) cancelEdit();
-      await refresh();
+      const res = await enqueue(() => deleteTransaction(id));
+      rev.current = Math.max(rev.current, res.rev ?? 0);
+      setSummaryBase(res.summary);
     } catch (err) {
+      setTransactions((prev) => sortTransactions([...prev, previous]));
       flashError(err instanceof Error ? err.message : "Не удалось удалить");
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -473,11 +567,11 @@ export function FinaApp() {
     setError(null);
     try {
       const data = await login(inviteCode, pin, selectedName);
-      setSummary(data.summary);
+      rev.current = data.rev ?? 0;
+      setSummaryBase(data.summary);
       if (data.transactions) {
-        setTransactions(data.transactions);
+        setTransactions(sortTransactions(data.transactions));
         seedOpDefaults(data.summary, data.transactions);
-        saveBootstrapCache(data.summary, data.transactions);
       } else {
         // Старый воркер без transactions в login — догрузим bootstrap/парой запросов.
         await refresh();
@@ -502,25 +596,51 @@ export function FinaApp() {
       flashError("Выбери разных участников");
       return;
     }
-    setLoading(true);
+    const body = {
+      type,
+      amountCents: value * 100,
+      note: "",
+      memberId: needsMember(type) ? opMemberId || null : null,
+      toMemberId: type === "transfer" ? opToMemberId || null : null,
+    };
+    const members = summary?.members ?? [];
+    const from = memberFacts(members, body.memberId);
+    const to = memberFacts(members, body.toMemberId);
+    const id = draftId();
+    const draft: Transaction = {
+      id,
+      type,
+      amountCents: body.amountCents,
+      note: "",
+      occurredAt: new Date().toISOString(),
+      memberId: body.memberId,
+      memberName: from.name,
+      memberAccent: from.accent,
+      toMemberId: body.toMemberId,
+      toMemberName: to.name,
+      createdByName: savedMember()?.name ?? null,
+      pending: true,
+    };
+
+    // Экран не ждёт сеть: по мобильному запись в gist — это секунды, и всё это
+    // время раньше висел неотзывчивый интерфейс со старыми цифрами.
+    setTransactions((prev) => sortTransactions([draft, ...prev]));
     setError(null);
+    setOpAmount("");
+    // необычный тип — разовый выбор, следующая операция снова обычная
+    setOpSpecial(null);
+    sfx(type === "withdrawal" ? "remove" : "success");
+
     try {
-      await createTransaction({
-        type,
-        amountCents: value * 100,
-        note: "",
-        memberId: needsMember(type) ? opMemberId || null : null,
-        toMemberId: type === "transfer" ? opToMemberId || null : null,
-      });
-      setOpAmount("");
-      // необычный тип — разовый выбор, следующая операция снова обычная
-      setOpSpecial(null);
-      sfx(type === "withdrawal" ? "remove" : "success");
-      await refresh();
+      const res = await enqueue(() => createTransaction(body));
+      rev.current = Math.max(rev.current, res.rev ?? 0);
+      setSummaryBase(res.summary);
+      setTransactions((prev) =>
+        sortTransactions(prev.map((t) => (t.id === id ? res.transaction : t))),
+      );
     } catch (err) {
+      setTransactions((prev) => prev.filter((t) => t.id !== id));
       flashError(err instanceof Error ? err.message : "Не удалось сохранить");
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -919,8 +1039,9 @@ export function FinaApp() {
                       data-row-id={tx.id}
                       data-revealed={revealedId === tx.id ? "true" : "false"}
                       data-pressing={pressingId === tx.id ? "true" : "false"}
+                      data-pending={tx.pending ? "true" : "false"}
                       className="tx-row stagger-item -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2"
-                      onPointerDown={(e) => onRowPointerDown(e, tx.id)}
+                      onPointerDown={(e) => onRowPointerDown(e, tx)}
                       onPointerMove={onRowPointerMove}
                       onPointerUp={cancelLongPress}
                       onPointerCancel={cancelLongPress}
