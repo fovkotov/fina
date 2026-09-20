@@ -181,7 +181,7 @@ function MomDelta({ cents }: { cents: number | null | undefined }) {
   const negative = cents < 0;
   return (
     <p
-      className={`mt-0.5 text-xs tabular-nums ${
+      className={`mt-px text-xs tabular-nums ${
         negative
           ? "text-rose-600/70 dark:text-rose-400/60"
           : "text-emerald-600/70 dark:text-emerald-400/60"
@@ -662,7 +662,7 @@ export function FinaApp() {
                 </div>
               </div>
               {/* 24px до крупной суммы: 16 из gap секции плюс свои 8. */}
-              <div className="mt-2 grid grid-cols-2 gap-3">
+              <div className="mt-2 grid grid-cols-2 gap-4">
                 {(summary?.members ?? []).map((m, i) => (
                   <div
                     key={m.id}
@@ -681,7 +681,7 @@ export function FinaApp() {
                   </div>
                 ))}
               </div>
-              <div className="grid grid-cols-3 gap-2 text-[clamp(0.75rem,3.4vw,0.875rem)]">
+              <div className="mt-1 grid grid-cols-3 gap-2 text-[clamp(0.75rem,3.4vw,0.875rem)]">
                 <div className="stagger-item">
                   <p className="text-muted-foreground">Изи мани</p>
                   <TextMorph as="p" locale="ru" duration={240} className="font-medium tabular-nums">
@@ -747,27 +747,28 @@ export function FinaApp() {
                     <span className="border-border/70 flex-1 border-t" />
                   </div>
                 )}
-                {/* Воздух между месяцами — снаружи плашки, чтобы она не
-                    растягивалась в высокий блок. sticky на обёртке: иначе
-                    плашка липнет только в пределах короткого родителя. */}
+                {/* Воздух между месяцами — на нелипкой обёртке вместе со
+                    строками, чтобы sticky мог держаться до конца месяца,
+                    а pt-10 уезжал. -mx-2/px-2 как у строк — колонки совпадают. */}
                 <div
-                  className={`bg-background sticky top-0 z-10 ${i === 0 ? "pt-0" : month.showYear ? "pt-4" : "pt-10"}`}
+                  className={`space-y-1 ${i === 0 ? "pt-0" : month.showYear ? "pt-4" : "pt-10"}`}
                 >
-                  <div className="bg-foreground/5 flex items-baseline justify-between gap-3 rounded-[4px] px-2 py-1.5">
-                    <h3 className="text-muted-foreground text-xs font-medium">
-                      {month.label}
-                    </h3>
-                    <p
-                      className={`text-xs font-medium tabular-nums ${month.totalCents < 0 ? "text-destructive/80" : "text-muted-foreground"}`}
-                    >
-                      <TextMorph as="span" locale="ru" duration={200}>
-                        {`${month.totalCents < 0 ? "−" : "+"}${formatMoney(Math.abs(month.totalCents))}`}
-                      </TextMorph>
-                    </p>
+                  <div className="bg-background sticky top-0 z-10 -mx-2">
+                    <div className="bg-foreground/5 flex items-baseline justify-between gap-3 rounded-[4px] px-2 py-1.5">
+                      <h3 className="text-muted-foreground text-xs font-medium">
+                        {month.label}
+                      </h3>
+                      <p
+                        className={`text-xs font-medium tabular-nums ${month.totalCents < 0 ? "text-destructive/80" : "text-muted-foreground"}`}
+                      >
+                        <TextMorph as="span" locale="ru" duration={200}>
+                          {`${month.totalCents < 0 ? "−" : "+"}${formatMoney(Math.abs(month.totalCents))}`}
+                        </TextMorph>
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                {month.items.map((tx) =>
+                  {month.items.map((tx) =>
                   editing?.id === tx.id ? (
                     <form
                       key={tx.id}
@@ -978,6 +979,7 @@ export function FinaApp() {
                     </div>
                   ),
                 )}
+                </div>
               </section>
             ))}
             {!months.length && (
