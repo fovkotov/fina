@@ -1,22 +1,26 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { TextMorph } from "torph/react";
 import { bind } from "cuelume";
 import { Eye, EyeOff } from "lucide-react";
 import {
   TYPE_LABELS,
+  applyPending,
   createTransaction,
   deleteTransaction,
-  fetchBootstrap,
+  fetchSummary,
+  fetchTransactions,
   formatDate,
   formatDayMonth,
   formatMoney,
   login,
   logout,
-  readBootstrapCache,
+  readSummaryCache,
+  readTransactionsCache,
   recomputeSummary,
-  saveBootstrapCache,
+  saveSummaryCache,
+  saveTxCache,
   savedMember,
   savedToken,
   setApiBase,
@@ -266,8 +270,16 @@ export function FinaApp() {
   /** С сервера берём только неизменяемую часть: кто участники и как зовут кабинет. */
   const [summaryBase, setSummaryBase] = useState<Summary | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  /** Версия сводки и версия списка живут отдельно: список может отстать, цифры — нет. */
+  const [ledgerRev, setLedgerRev] = useState(0);
+  const [txRev, setTxRev] = useState(-1);
+  /** Кэш списка читаем после первого кадра шапки, чтобы не разбирать его до отрисовки. */
+  const [txHydrated, setTxHydrated] = useState(false);
+  const [txFailed, setTxFailed] = useState(false);
   /** Версия данных на сервере: отставший фоновый ответ не должен затирать свежий. */
   const rev = useRef(0);
+  const txRevRef = useRef(-1);
+  const loadErrorShown = useRef(false);
   /**
    * Экран больше не блокируется на время записи, так что накликать две операции
    * подряд — обычное дело. Но сохранение в gist это «прочитал-изменил-записал»:
@@ -282,13 +294,18 @@ export function FinaApp() {
   }
 
   /**
-   * Итоги считаем из списка операций, а не берём готовыми из ответа. Иначе
-   * оптимистичная строка уже на экране, а сумма над ней ещё старая.
+   * Пока список не догнал сводку, цифры берём из неё: пересчёт по пустому или
+   * старому списку обнулил бы шапку. Когда список тот же версии — считаем сами,
+   * чтобы оптимистичная строка сразу двигала сумму.
    */
-  const summary = useMemo(
-    () => (summaryBase ? recomputeSummary(summaryBase, transactions) : null),
-    [summaryBase, transactions],
-  );
+  const summary = useMemo(() => {
+    if (!summaryBase) return null;
+    if (txRev >= 0 && txRev >= ledgerRev) return recomputeSummary(summaryBase, transactions);
+    return applyPending(
+      summaryBase,
+      transactions.filter((t) => t.pending),
+    );
+  }, [summaryBase, transactions, txRev, ledgerRev]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [inviteCode, setInviteCode] = useState("FINA26");
@@ -317,38 +334,62 @@ export function FinaApp() {
     setInviteCode(inviteFromUrl());
     if (readFlag(HIDE_BALANCES_KEY)) setHideBalances(true);
     requestAnimationFrame(() => setMounted(true));
-    // Сессия есть — рисуем кэш мгновенно, свежие данные подтянем фоном.
+    // Сессия есть — шапку рисуем из маленького кэша сразу, список читаем следующим кадром.
     if (savedMember() && savedToken()) {
-      const cached = readBootstrapCache();
+      const cached = readSummaryCache();
       if (cached) {
         rev.current = cached.rev;
+        setLedgerRev(cached.rev);
         setSummaryBase(cached.summary);
-        setTransactions(cached.transactions);
-        seedOpDefaults(cached.summary, cached.transactions);
+        seedMembers(cached.summary);
       }
       setLoggedIn(true);
+      requestAnimationFrame(() => {
+        const cachedTx = readTransactionsCache();
+        startTransition(() => {
+          // Сеть могла успеть раньше кадра — старый кэш её не затирает.
+          if (cachedTx && txRevRef.current < 0) {
+            txRevRef.current = cachedTx.rev;
+            setTxRev(cachedTx.rev);
+            setTransactions(cachedTx.transactions);
+            seedOpType(cachedTx.transactions);
+          }
+          setTxHydrated(true);
+        });
+      });
       void refresh({ background: Boolean(cached), silent: Boolean(cached) });
     }
   }, []);
 
   /**
    * В кэш кладём только подтверждённое: иначе после перезапуска на экране
-   * висела бы операция, которая на сервер так и не доехала.
+   * висела бы операция, которая на сервер так и не доехала. Список пишем
+   * отдельно и только когда он той же версии, что и цифры.
    */
   useEffect(() => {
-    if (!summary) return;
+    if (!summary || !summaryBase) return;
     if (transactions.some((t) => t.pending)) return;
-    saveBootstrapCache(summary, transactions, rev.current);
-  }, [summary, transactions]);
+    if (txRev >= 0 && txRev >= ledgerRev) {
+      saveSummaryCache(summary, txRev);
+      saveTxCache(transactions, txRev);
+      return;
+    }
+    if (ledgerRev > 0) saveSummaryCache(summaryBase, ledgerRev);
+  }, [summary, summaryBase, transactions, txRev, ledgerRev]);
 
-  /** Дефолты композера: участник — тот, кто вошёл; знак — как в его прошлой операции. */
-  function seedOpDefaults(s: Summary, t: Transaction[]) {
+  /** Участник композера известен из сводки — список для этого не нужен. */
+  function seedMembers(s: Summary) {
     const me = savedMember();
     const fromId = me?.id || s.members[0]?.id || "";
     setOpMemberId((prev) => prev || fromId);
     setOpToMemberId((prev) => prev || otherMemberId(s.members, fromId));
+  }
+
+  /** Знак — как в прошлой операции вошедшего. Ставим один раз, когда список уже есть. */
+  function seedOpType(t: Transaction[]) {
     if (opTypeSeeded.current) return;
     opTypeSeeded.current = true;
+    const me = savedMember();
     const last = t.find(
       (x) =>
         (x.type === "deposit" || x.type === "withdrawal") &&
@@ -357,39 +398,108 @@ export function FinaApp() {
     if (last) setOpType(last.type as OpType);
   }
 
+  /** Запись сдвинула версию. Список считаем свежим, только если он уже был целиком. */
+  function noteWrite(serverRev: number | undefined) {
+    if (serverRev == null) return;
+    rev.current = Math.max(rev.current, serverRev);
+    setLedgerRev((prev) => Math.max(prev, serverRev));
+    if (txRevRef.current >= 0) {
+      txRevRef.current = Math.max(txRevRef.current, serverRev);
+      setTxRev(txRevRef.current);
+    }
+  }
+
   function flashError(message: string) {
     setError(message);
     setShakeError((n) => n + 1);
     sfx("error");
   }
 
+  function failLoad(e: unknown, silent: boolean | undefined) {
+    if (!silent && !loadErrorShown.current) {
+      loadErrorShown.current = true;
+      flashError(e instanceof Error ? e.message : "Ошибка загрузки");
+    }
+    if (String(e).toLowerCase().includes("unauthorized")) {
+      logout();
+      setLoggedIn(false);
+      setSummaryBase(null);
+      setTransactions([]);
+      setLedgerRev(0);
+      txRevRef.current = -1;
+      setTxRev(-1);
+      setTxHydrated(false);
+      setTxFailed(false);
+      rev.current = 0;
+    }
+  }
+
+  async function loadSummary(silent?: boolean) {
+    try {
+      const { summary: s, rev: serverRev } = await fetchSummary();
+      if (!savedToken()) return;
+      if (serverRev != null && serverRev < rev.current) return;
+      if (serverRev != null) {
+        rev.current = serverRev;
+        setLedgerRev(serverRev);
+      }
+      setSummaryBase(s);
+      seedMembers(s);
+    } catch (e) {
+      failLoad(e, silent);
+    }
+  }
+
+  async function loadTransactions(silent?: boolean) {
+    try {
+      const { transactions: t, rev: serverRev } = await fetchTransactions();
+      if (!savedToken()) return;
+      // Отставший список не затирает уже показанный. Пустой экран — заполняем всё равно.
+      if (serverRev != null && serverRev < rev.current && txRevRef.current >= 0) return;
+      if (serverRev != null) {
+        txRevRef.current = serverRev;
+        rev.current = Math.max(rev.current, serverRev);
+      } else if (txRevRef.current < 0) {
+        txRevRef.current = rev.current;
+      }
+      const nextRev = txRevRef.current;
+      startTransition(() => {
+        setTransactions((prev) =>
+          sortTransactions([
+            ...t,
+            ...prev.filter((x) => x.pending && !t.some((s) => s.id === x.id)),
+          ]),
+        );
+        setTxRev(nextRev);
+        setTxHydrated(true);
+        setTxFailed(false);
+      });
+      seedOpType(t);
+    } catch (e) {
+      setTxHydrated(true);
+      if (txRevRef.current < 0) setTxFailed(true);
+      failLoad(e, silent);
+    }
+  }
+
+  /**
+   * Сводка уходит в сеть первой и рисуется, как только приехала.
+   * Список — отдельным запросом на тик позже, шапку он не держит.
+   */
   async function refresh(opts?: { background?: boolean; silent?: boolean }) {
+    loadErrorShown.current = false;
     const background = opts?.background ?? false;
     if (!background) setLoading(true);
     if (!opts?.silent) setError(null);
-    try {
-      const { summary: s, transactions: t, rev: serverRev } = await fetchBootstrap();
-      // Ответить мог инстанс с отставшим кэшем — тогда наши данные новее.
-      if (serverRev != null && serverRev < rev.current) return;
-      if (serverRev != null) rev.current = serverRev;
-      setSummaryBase(s);
-      // Ещё не долетевшие операции с экрана не убираем.
-      setTransactions((prev) =>
-        sortTransactions([...t, ...prev.filter((x) => x.pending)]),
-      );
-      seedOpDefaults(s, t);
-    } catch (e) {
-      // Кэш уже на экране — сетевой сбой фоном не перекрываем баннером.
-      if (!opts?.silent) {
-        flashError(e instanceof Error ? e.message : "Ошибка загрузки");
-      }
-      if (String(e).toLowerCase().includes("unauthorized")) {
-        logout();
-        setLoggedIn(false);
-      }
-    } finally {
+    const summaryDone = loadSummary(opts?.silent).finally(() => {
       if (!background) setLoading(false);
-    }
+    });
+    const txDone = new Promise<void>((resolve) => {
+      setTimeout(() => {
+        void loadTransactions(opts?.silent).finally(resolve);
+      }, 0);
+    });
+    await Promise.all([summaryDone, txDone]);
   }
 
   /**
@@ -521,7 +631,7 @@ export function FinaApp() {
 
     try {
       const res = await enqueue(() => updateTransaction(id, patch));
-      rev.current = Math.max(rev.current, res.rev ?? 0);
+      noteWrite(res.rev);
       setSummaryBase(res.summary);
       setTransactions((prev) =>
         sortTransactions(prev.map((t) => (t.id === id ? res.transaction : t))),
@@ -553,7 +663,7 @@ export function FinaApp() {
 
     try {
       const res = await enqueue(() => deleteTransaction(id));
-      rev.current = Math.max(rev.current, res.rev ?? 0);
+      noteWrite(res.rev);
       setSummaryBase(res.summary);
     } catch (err) {
       setTransactions((prev) => sortTransactions([...prev, previous]));
@@ -568,16 +678,25 @@ export function FinaApp() {
     try {
       const data = await login(inviteCode, pin, selectedName);
       rev.current = data.rev ?? 0;
+      setLedgerRev(data.rev ?? 0);
       setSummaryBase(data.summary);
-      if (data.transactions) {
-        setTransactions(sortTransactions(data.transactions));
-        seedOpDefaults(data.summary, data.transactions);
-      } else {
-        // Старый воркер без transactions в login — догрузим bootstrap/парой запросов.
-        await refresh();
-      }
+      seedMembers(data.summary);
       setLoggedIn(true);
       sfx("success");
+      if (data.transactions) {
+        const txs = sortTransactions(data.transactions);
+        const serverRev = data.rev ?? 0;
+        txRevRef.current = serverRev;
+        startTransition(() => {
+          setTransactions(txs);
+          setTxRev(serverRev);
+          setTxHydrated(true);
+        });
+        seedOpType(txs);
+      } else {
+        setTxHydrated(true);
+        void loadTransactions(true);
+      }
     } catch (err) {
       flashError(err instanceof Error ? err.message : "Не удалось войти");
     } finally {
@@ -633,7 +752,7 @@ export function FinaApp() {
 
     try {
       const res = await enqueue(() => createTransaction(body));
-      rev.current = Math.max(rev.current, res.rev ?? 0);
+      noteWrite(res.rev);
       setSummaryBase(res.summary);
       setTransactions((prev) =>
         sortTransactions(prev.map((t) => (t.id === id ? res.transaction : t))),
@@ -756,7 +875,7 @@ export function FinaApp() {
         <div className="grid items-start gap-4 lg:grid-cols-[var(--composer-field)_480px] lg:gap-x-12">
           <div className="grid gap-4 lg:sticky lg:top-8 lg:self-start">
             <section
-              className={`surface-enter grid gap-4 ${loading ? "content-busy" : "content-ready"}`}
+              className={`surface-enter grid gap-4 ${summary ? "content-ready" : "content-busy"}`}
             >
               <div className="grid gap-1.5">
                 <p className="text-muted-foreground text-sm">Всего на счёте</p>
@@ -842,16 +961,14 @@ export function FinaApp() {
                 amount={opAmount}
                 onAmountChange={setOpAmount}
                 onSubmit={submitOp}
-                disabled={loading}
+                disabled={!summary}
               />
             </section>
           </div>
 
           {/* На мобилке список сразу под композером, без второй линейки:
               черта остаётся только между цифрами и полем. */}
-          <div
-            className={`mt-8 lg:mt-0 ${loading ? "content-busy" : "content-ready"}`}
-          >
+          <div className="mt-8 lg:mt-0">
             {months.map((month, i) => (
               /* Воздух после месяца — in-flow after:h-10, не pb: padding
                  не держит sticky. Плашка живёт, пока не приедет следующая. */
@@ -1100,10 +1217,18 @@ export function FinaApp() {
                 </div>
               </section>
             ))}
-            {!months.length && (
-              <p className="text-muted-foreground py-6 text-center text-sm">
-                Операций пока нет
-              </p>
+            {txRev < 0 ? (
+              txHydrated && (
+                <p className="text-muted-foreground py-6 text-center text-sm">
+                  {txFailed ? "Список не загрузился" : "Загрузка…"}
+                </p>
+              )
+            ) : (
+              !months.length && (
+                <p className="text-muted-foreground py-6 text-center text-sm">
+                  Операций пока нет
+                </p>
+              )
             )}
           </div>
         </div>
@@ -1116,6 +1241,15 @@ export function FinaApp() {
             onClick={() => {
               logout();
               setLoggedIn(false);
+              setSummaryBase(null);
+              setTransactions([]);
+              setLedgerRev(0);
+              txRevRef.current = -1;
+              setTxRev(-1);
+              setTxHydrated(false);
+              setTxFailed(false);
+              rev.current = 0;
+              opTypeSeeded.current = false;
             }}
           >
             Выйти

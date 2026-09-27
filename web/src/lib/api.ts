@@ -88,6 +88,53 @@ export function recomputeSummary(base: Summary, list: Transaction[]): Summary {
   };
 }
 
+/**
+ * Список ещё не приехал, а операция уже на экране. Серверные цифры не обнуляем —
+ * прибавляем только то, что ушло в сеть и ещё не попало в сводку.
+ */
+export function applyPending(base: Summary, pending: Transaction[]): Summary {
+  if (pending.length === 0) return base;
+
+  let contributions = base.contributionsCents;
+  let interest = base.interestCents;
+  let cashback = base.cashbackCents;
+  const balances = new Map(base.members.map((m) => [m.id, m.balanceCents ?? 0]));
+
+  for (const t of pending) {
+    if (t.type === "deposit") contributions += t.amountCents;
+    else if (t.type === "withdrawal") contributions -= t.amountCents;
+    else if (t.type === "interest") interest += t.amountCents;
+    else if (t.type === "cashback") cashback += t.amountCents;
+
+    if (t.type === "deposit" && t.memberId) {
+      balances.set(t.memberId, (balances.get(t.memberId) ?? 0) + t.amountCents);
+    } else if (t.type === "withdrawal" && t.memberId) {
+      balances.set(t.memberId, (balances.get(t.memberId) ?? 0) - t.amountCents);
+    } else if (t.type === "transfer") {
+      if (t.memberId) {
+        balances.set(t.memberId, (balances.get(t.memberId) ?? 0) - t.amountCents);
+      }
+      if (t.toMemberId) {
+        balances.set(t.toMemberId, (balances.get(t.toMemberId) ?? 0) + t.amountCents);
+      }
+    }
+  }
+
+  const accrualsCents = interest + cashback;
+  return {
+    ...base,
+    totalCents: contributions + accrualsCents,
+    contributionsCents: contributions,
+    interestCents: interest,
+    cashbackCents: cashback,
+    accrualsCents,
+    members: base.members.map((m) => ({
+      ...m,
+      balanceCents: balances.get(m.id) ?? 0,
+    })),
+  };
+}
+
 /** Базовый URL API. Пусто — значит тот же origin. */
 const DEFAULT_API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "").replace(/\/$/, "");
 const API_BASE_KEY = "fina-api-base";
@@ -262,10 +309,16 @@ export async function login(inviteCode: string, pin: string, memberName: string)
   return data;
 }
 
+const BOOTSTRAP_KEY = "bootstrap";
+const SUMMARY_CACHE_KEY = "bootstrap-summary";
+const TX_CACHE_KEY = "bootstrap-tx";
+
 export function logout() {
   store.remove("token");
   store.remove("member");
-  store.remove("bootstrap");
+  store.remove(BOOTSTRAP_KEY);
+  store.remove(SUMMARY_CACHE_KEY);
+  store.remove(TX_CACHE_KEY);
 }
 
 export function savedToken() {
@@ -282,22 +335,18 @@ export function savedMember(): Member | null {
   }
 }
 
-const BOOTSTRAP_KEY = "bootstrap";
-
-/** Последний удачный кабинет — чтобы открыть UI сразу, не дожидаясь сети. */
-export function saveBootstrapCache(
-  summary: Summary,
-  transactions: Transaction[],
-  rev: number,
-) {
-  store.set(BOOTSTRAP_KEY, JSON.stringify({ summary, transactions, rev }));
-}
-
-export function readBootstrapCache(): {
+type LegacyBundle = {
   summary: Summary;
   transactions: Transaction[];
   rev: number;
-} | null {
+};
+
+/** Старый кэш был одним JSON: парсим его один раз и сразу раскладываем на два ключа. */
+let legacyBundle: LegacyBundle | null | undefined;
+
+function readLegacyBundle(): LegacyBundle | null {
+  if (legacyBundle !== undefined) return legacyBundle;
+  legacyBundle = null;
   const raw = store.get(BOOTSTRAP_KEY);
   if (!raw) return null;
   try {
@@ -307,41 +356,78 @@ export function readBootstrapCache(): {
       rev?: number;
     };
     if (!data?.summary || !Array.isArray(data.transactions)) return null;
-    return {
+    legacyBundle = {
       summary: data.summary,
       transactions: data.transactions,
       rev: data.rev ?? 0,
     };
+    return legacyBundle;
   } catch {
     return null;
   }
 }
 
-export const fetchSummary = () => request<Summary>("/api/summary");
-
-export async function fetchTransactions() {
-  const data = await request<{ transactions: Transaction[] }>("/api/transactions");
-  return data.transactions;
+export function saveSummaryCache(summary: Summary, rev: number) {
+  store.set(SUMMARY_CACHE_KEY, JSON.stringify({ summary, rev }));
 }
 
-/** Старт кабинета одним запросом — без параллельных loadDb на воркере. */
-export async function fetchBootstrap() {
-  try {
-    return await request<{
-      summary: Summary;
-      transactions: Transaction[];
-      rev?: number;
-    }>("/api/bootstrap");
-  } catch (e) {
-    // Пока новый воркер не выкатили — собираем теми же двумя эндпоинтами.
-    const message = e instanceof Error ? e.message : "";
-    if (!/not found|404/i.test(message)) throw e;
-    const [summary, transactions] = await Promise.all([
-      fetchSummary(),
-      fetchTransactions(),
-    ]);
-    return { summary, transactions, rev: undefined };
+export function saveTxCache(transactions: Transaction[], rev: number) {
+  store.set(TX_CACHE_KEY, JSON.stringify({ transactions, rev }));
+}
+
+/** Маленький ключ: шапка рисуется, не дожидаясь разбора списка. */
+export function readSummaryCache(): { summary: Summary; rev: number } | null {
+  const raw = store.get(SUMMARY_CACHE_KEY);
+  if (raw) {
+    try {
+      const data = JSON.parse(raw) as { summary?: Summary; rev?: number };
+      if (!data?.summary) return null;
+      return { summary: data.summary, rev: data.rev ?? 0 };
+    } catch {
+      return null;
+    }
   }
+  const legacy = readLegacyBundle();
+  if (!legacy) return null;
+  saveSummaryCache(legacy.summary, legacy.rev);
+  saveTxCache(legacy.transactions, legacy.rev);
+  store.remove(BOOTSTRAP_KEY);
+  return { summary: legacy.summary, rev: legacy.rev };
+}
+
+export function readTransactionsCache(): {
+  transactions: Transaction[];
+  rev: number;
+} | null {
+  const raw = store.get(TX_CACHE_KEY);
+  if (raw) {
+    try {
+      const data = JSON.parse(raw) as {
+        transactions?: Transaction[];
+        rev?: number;
+      };
+      if (!Array.isArray(data?.transactions)) return null;
+      return { transactions: data.transactions, rev: data.rev ?? 0 };
+    } catch {
+      return null;
+    }
+  }
+  const legacy = readLegacyBundle();
+  if (!legacy) return null;
+  return { transactions: legacy.transactions, rev: legacy.rev };
+}
+
+export async function fetchSummary() {
+  const data = await request<Summary & { rev?: number }>("/api/summary");
+  const { rev, ...summary } = data;
+  return { summary, rev };
+}
+
+export async function fetchTransactions() {
+  const data = await request<{ transactions: Transaction[]; rev?: number }>(
+    "/api/transactions",
+  );
+  return { transactions: data.transactions, rev: data.rev };
 }
 
 export function createTransaction(body: {

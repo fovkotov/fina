@@ -146,8 +146,8 @@ async function login(req: Request, env: Env) {
   }
 
   // Подписанный токен — без PATCH в gist. Раньше запись сессии съедала ~1с на вход.
+  // Список операций в ответ не кладём: шапка кабинета должна приехать без него.
   const { token, expiresAt } = await issueSessionToken(env, household.id, member.id);
-  const txs = listTransactions(data, household.id);
 
   return json(req, env, {
     token,
@@ -159,7 +159,6 @@ async function login(req: Request, env: Env) {
     },
     member: { id: member.id, name: member.name, accent: member.accent },
     summary: getSummary(data, household.id),
-    transactions: txs.map((t) => serializeTx(data, t)),
     rev: data.rev ?? 0,
   });
 }
@@ -340,7 +339,10 @@ async function route(req: Request, env: Env): Promise<Response> {
   if (pathname === "/api/summary" && method === "GET") {
     const { data, auth } = await authorize(req, env);
     if (!auth) return json(req, env, { error: "Unauthorized" }, 401);
-    return json(req, env, getSummary(data, auth.session.household_id));
+    return json(req, env, {
+      ...getSummary(data, auth.session.household_id),
+      rev: data.rev ?? 0,
+    });
   }
 
   // Один round-trip на старт кабинета: summary + операции из одного loadDb.
@@ -364,7 +366,7 @@ async function route(req: Request, env: Env): Promise<Response> {
       const rows = listTransactions(data, auth.session.household_id).map((t) =>
         serializeTx(data, t),
       );
-      return json(req, env, { transactions: rows });
+      return json(req, env, { transactions: rows, rev: data.rev ?? 0 });
     }
     if (method === "POST") return createTransaction(req, env);
   }
