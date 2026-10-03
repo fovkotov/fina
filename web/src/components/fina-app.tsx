@@ -1,6 +1,14 @@
 "use client";
 
-import { startTransition, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  startTransition,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type MouseEvent,
+} from "react";
 import { TextMorph } from "torph/react";
 import { bind } from "cuelume";
 import { Eye, EyeOff } from "lucide-react";
@@ -58,6 +66,38 @@ const NAMES = ["Аня", "Андрей"] as const;
 const ALL_TYPES = Object.keys(TYPE_LABELS) as TransactionType[];
 const HIDE_BALANCES_KEY = "fina-hide-balances";
 const HIDDEN_MONEY = "••••••";
+
+/** Соседние цифры не должны выпадать в один и тот же оттенок. */
+let lastDigitHue = -1;
+
+function brightDigitColor() {
+  let hue = Math.random() * 360;
+  if (lastDigitHue >= 0) {
+    for (let i = 0; i < 8; i++) {
+      const delta = Math.abs(hue - lastDigitHue);
+      const apart = Math.min(delta, 360 - delta);
+      if (apart >= 48) break;
+      hue = Math.random() * 360;
+    }
+  }
+  lastDigitHue = hue;
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  return dark ? `oklch(0.82 0.16 ${hue})` : `oklch(0.55 0.2 ${hue})`;
+}
+
+function onTotalDigitOver(event: MouseEvent<HTMLElement>) {
+  if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+  const el = event.target;
+  if (!(el instanceof HTMLElement) || !el.hasAttribute("torph-item")) return;
+  if (!/\d/.test(el.textContent ?? "")) return;
+  el.style.color = brightDigitColor();
+}
+
+function onTotalDigitOut(event: MouseEvent<HTMLElement>) {
+  const el = event.target;
+  if (!(el instanceof HTMLElement) || !el.hasAttribute("torph-item")) return;
+  el.style.color = "";
+}
 
 function inviteFromUrl() {
   if (typeof window === "undefined") return "FINA26";
@@ -880,9 +920,15 @@ export function FinaApp() {
               <div className="grid gap-1.5">
                 <p className="text-muted-foreground text-sm">Всего на счёте</p>
                 <div className="font-heading flex items-center gap-2 text-4xl leading-none font-semibold md:gap-3 md:text-5xl tabular-nums">
-                  <TextMorph as="span" locale="ru" duration={280}>
-                    {totalLabel}
-                  </TextMorph>
+                  <span
+                    className="digit-play"
+                    onMouseOver={onTotalDigitOver}
+                    onMouseOut={onTotalDigitOut}
+                  >
+                    <TextMorph as="span" locale="ru" duration={280}>
+                      {totalLabel}
+                    </TextMorph>
+                  </span>
                   <Button
                     type="button"
                     variant="ghost"

@@ -129,6 +129,13 @@
     radial-gradient(circle at 90% 0%, var(--auth-glow-2), transparent 35%);
 }
 
+/* Крупная сумма: цифра под курсором вспыхивает ярким цветом и гаснет обратно. */
+@media (hover: hover) and (pointer: fine) {
+  .digit-play [torph-item] {
+    transition: color 140ms var(--ease-out);
+  }
+}
+
 /* —— Press / tap feedback (Emil: 100–160ms, scale 0.97, ease-out) —— */
 .pressable {
   transition:
