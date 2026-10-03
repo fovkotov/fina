@@ -202,7 +202,7 @@ function MomDelta({ cents }: { cents: number | null | undefined }) {
     <p
       className={`mt-[3px] text-xs font-medium tabular-nums ${
         negative
-          ? "text-rose-600/70 dark:text-rose-400/60"
+          ? "text-muted-foreground"
           : "text-emerald-600/70 dark:text-emerald-400/60"
       }`}
     >
