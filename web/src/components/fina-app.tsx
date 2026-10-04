@@ -67,6 +67,21 @@ const ALL_TYPES = Object.keys(TYPE_LABELS) as TransactionType[];
 const HIDE_BALANCES_KEY = "fina-hide-balances";
 const HIDDEN_MONEY = "••••••";
 
+/**
+ * Сумма для пересчёта разрядов. Обычный формат денег кладёт nbsp между группами
+ * и перед ₽ — torph режет строку на слова и меняет цифры целиком. Узкий пробел
+ * остаётся внутри одного числа, знак рубля стоит рядом и не крутится.
+ */
+function formatRollingMoney(cents: number) {
+  return new Intl.NumberFormat("ru-RU", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+    .formatToParts(cents / 100)
+    .map((part) => (part.type === "group" ? "\u202F" : part.value))
+    .join("");
+}
+
 /** Соседние цифры не должны выпадать в один и тот же оттенок. */
 let lastDigitHue = -1;
 
@@ -803,11 +818,9 @@ export function FinaApp() {
     }
   }
 
-  const totalLabel = useMemo(
-    () =>
-      hideBalances ? HIDDEN_MONEY : formatMoney(summary?.totalCents ?? 0),
-    [hideBalances, summary?.totalCents],
-  );
+  const totalLabel = hideBalances
+    ? HIDDEN_MONEY
+    : formatRollingMoney(summary?.totalCents ?? 0);
 
   function toggleHideBalances() {
     setHideBalances((prev) => {
@@ -925,9 +938,16 @@ export function FinaApp() {
                     onMouseOver={onTotalDigitOver}
                     onMouseOut={onTotalDigitOut}
                   >
-                    <TextMorph as="span" locale="ru" duration={280}>
+                    <TextMorph
+                      as="span"
+                      locale="ru"
+                      numbers
+                      duration={400}
+                      ease="cubic-bezier(0.23, 1, 0.32, 1)"
+                    >
                       {totalLabel}
                     </TextMorph>
+                    {!hideBalances && "\u00A0₽"}
                   </span>
                   <Button
                     type="button"
