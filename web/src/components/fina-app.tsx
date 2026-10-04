@@ -82,6 +82,35 @@ function formatRollingMoney(cents: number) {
     .join("");
 }
 
+/** Разряды крутятся, ₽ стоит рядом. `sign` — для дельты, где плюс тоже явный. */
+function RollingMoney({
+  cents,
+  hidden = false,
+  sign,
+}: {
+  cents: number;
+  hidden?: boolean;
+  sign?: "+" | "−";
+}) {
+  const text = hidden
+    ? HIDDEN_MONEY
+    : `${sign ?? ""}${formatRollingMoney(sign ? Math.abs(cents) : cents)}`;
+  return (
+    <>
+      <TextMorph
+        as="span"
+        locale="ru"
+        numbers
+        duration={400}
+        ease="cubic-bezier(0.23, 1, 0.32, 1)"
+      >
+        {text}
+      </TextMorph>
+      {!hidden && "\u00A0₽"}
+    </>
+  );
+}
+
 /** Соседние цифры не должны выпадать в один и тот же оттенок. */
 let lastDigitHue = -1;
 
@@ -261,7 +290,7 @@ function MomDelta({ cents }: { cents: number | null | undefined }) {
           : "text-emerald-600/70 dark:text-emerald-400/60"
       }`}
     >
-      {`${negative ? "−" : "+"}${formatMoney(Math.abs(cents))}`}
+      <RollingMoney cents={cents} sign={negative ? "−" : "+"} />
     </p>
   );
 }
@@ -818,10 +847,6 @@ export function FinaApp() {
     }
   }
 
-  const totalLabel = hideBalances
-    ? HIDDEN_MONEY
-    : formatRollingMoney(summary?.totalCents ?? 0);
-
   function toggleHideBalances() {
     setHideBalances((prev) => {
       const next = !prev;
@@ -829,10 +854,6 @@ export function FinaApp() {
       return next;
     });
     sfx("nav");
-  }
-
-  function moneyLabel(cents: number) {
-    return hideBalances ? HIDDEN_MONEY : formatMoney(cents);
   }
 
   const months = useMemo(() => groupByMonth(transactions), [transactions]);
@@ -938,16 +959,10 @@ export function FinaApp() {
                     onMouseOver={onTotalDigitOver}
                     onMouseOut={onTotalDigitOut}
                   >
-                    <TextMorph
-                      as="span"
-                      locale="ru"
-                      numbers
-                      duration={400}
-                      ease="cubic-bezier(0.23, 1, 0.32, 1)"
-                    >
-                      {totalLabel}
-                    </TextMorph>
-                    {!hideBalances && "\u00A0₽"}
+                    <RollingMoney
+                      cents={summary?.totalCents ?? 0}
+                      hidden={hideBalances}
+                    />
                   </span>
                   <Button
                     type="button"
@@ -975,9 +990,10 @@ export function FinaApp() {
                     {/* Баланс длинный, а плитка на телефоне — половина экрана:
                         кегль тянется за шириной вьюпорта и упирается в 20px. */}
                     <p className="text-[clamp(0.75rem,4vw,1.25rem)] font-semibold tabular-nums">
-                      <TextMorph as="span" locale="ru" duration={240}>
-                        {moneyLabel(m.balanceCents ?? 0)}
-                      </TextMorph>
+                      <RollingMoney
+                        cents={m.balanceCents ?? 0}
+                        hidden={hideBalances}
+                      />
                     </p>
                     {!hideBalances && <MomDelta cents={mom?.members[m.id]} />}
                   </div>
@@ -986,9 +1002,12 @@ export function FinaApp() {
               <div className="mt-1 grid grid-cols-3 gap-2 text-[clamp(0.75rem,3.4vw,0.875rem)]">
                 <div className="stagger-item">
                   <p className="text-muted-foreground">Изи мани</p>
-                  <TextMorph as="p" locale="ru" duration={240} className="font-medium tabular-nums">
-                    {moneyLabel(summary?.accrualsCents ?? 0)}
-                  </TextMorph>
+                  <p className="font-medium tabular-nums">
+                    <RollingMoney
+                      cents={summary?.accrualsCents ?? 0}
+                      hidden={hideBalances}
+                    />
+                  </p>
                   {!hideBalances && <MomDelta cents={mom?.accrualsCents} />}
                 </div>
               </div>
