@@ -138,16 +138,21 @@ export function applyPending(base: Summary, pending: Transaction[]): Summary {
 /** Базовый URL API. Пусто — значит тот же origin. */
 const DEFAULT_API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "").replace(/\/$/, "");
 const API_BASE_KEY = "fina-api-base";
-const REQUEST_TIMEOUT_MS = 15_000;
-const PROBE_TIMEOUT_MS = 6_000;
+const REQUEST_TIMEOUT_MS = 12_000;
+const PROBE_TIMEOUT_MS = 4_000;
+const LIVE_BASE_MS = 30_000;
 
 /**
- * Один и тот же кабинет живёт сразу на четырёх адресах, потому что российские
- * операторы режут то Cloudflare, то кастомные домены Vercel — и у каждой сети
- * свой набор живых. Порядок тут ни на что не влияет: побеждает первый, кто
- * ответит на /api/health, а победитель запоминается до первого сбоя.
+ * Куда реально можно стучаться.
+ *
+ * `fovkotov.lol` истёк у REG.RU, поэтому api.fovkotov.lol и api-cf — парковка
+ * регистратора, не наш сервер. Мобильные операторы отдельно не пускают к
+ * Cloudflare (workers.dev). Vercel с части сетей просто не отвечает.
+ * Дверь на Netlify жива с мобильного интернета: телефон говорит с ней, а она
+ * уже зовёт воркер. Порядок не важен — берём первый ответ /api/health.
  */
 const API_BASES = [
+  "https://fina-api-door.netlify.app",
   DEFAULT_API_BASE,
   "https://fina-api-orpin.vercel.app",
   "https://api-cf.fovkotov.lol",
@@ -199,14 +204,50 @@ export function setApiBase(url: string | null) {
   else store.remove(API_BASE_KEY);
 }
 
+/** Победитель прошлого замера. Пока он свежий, сохранение не ждёт новый перебор. */
+let liveBase: { url: string; until: number } | null = null;
+
+function rememberBase(url: string) {
+  liveBase = { url, until: Date.now() + LIVE_BASE_MS };
+  setApiBase(url);
+}
+
+function forgetBase(url: string) {
+  if (liveBase?.url === url) liveBase = null;
+  const saved = store.get(API_BASE_KEY)?.replace(/\/$/, "");
+  if (saved === url) setApiBase(null);
+}
+
+function basesToProbe(skip?: string) {
+  const saved = store.get(API_BASE_KEY)?.replace(/\/$/, "") ?? "";
+  return [...new Set([saved, ...API_BASES])].filter((base) => base && base !== skip);
+}
+
+function isTransportError(err: unknown) {
+  if (err instanceof TypeError) return true;
+  return err instanceof Error && err.name === "AbortError";
+}
+
 /** Пингуем всех разом: ждать их по очереди — это минуты на мёртвой сети. */
-async function probeApiBase(): Promise<string> {
-  const attempts = API_BASES.map(async (base) => {
+async function probeApiBase(skip?: string): Promise<string> {
+  const bases = basesToProbe(skip);
+  const attempts = bases.map(async (base) => {
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), PROBE_TIMEOUT_MS);
     try {
-      const res = await fetch(`${base}/api/health`, { signal: abort.signal });
+      const res = await fetch(`${base}/api/health`, {
+        signal: abort.signal,
+        cache: "no-store",
+      });
       if (!res.ok) throw new Error(`${hostOf(base)}: ${res.status}`);
+      const body = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        service?: string;
+      } | null;
+      // Парковка домена и заглушки оператора тоже умеют ответить «200».
+      if (!body?.ok || body.service !== "fina") {
+        throw new Error(`${hostOf(base)}: not fina`);
+      }
       return base;
     } finally {
       clearTimeout(timer);
@@ -215,29 +256,23 @@ async function probeApiBase(): Promise<string> {
   try {
     return await Promise.any(attempts);
   } catch {
-    const hosts = API_BASES.map(hostOf).join(", ");
+    const hosts = bases.map(hostOf).join(", ");
     throw new Error(
       `Ни один сервер не ответил (${hosts}). Дело не в коде или PIN — эта сеть ` +
-        `не пускает ни к одному из них. Попробуй другой Wi-Fi или VPN.`,
+        `не пускает ни к одному из них.`,
     );
   }
 }
 
-let probing: Promise<string> | null = null;
-
-/** Запомненный адрес важнее перебора, иначе каждый старт стоил бы лишних запросов. */
+/**
+ * Запомненный адрес не используем вслепую: на мобильном это часто Cloudflare,
+ * который молчит до таймаута. Берём того, кто прямо сейчас ответил на health.
+ */
 async function currentBase(): Promise<string> {
-  const saved = store.get(API_BASE_KEY)?.replace(/\/$/, "");
-  if (saved) return saved;
-  probing ??= probeApiBase()
-    .then((base) => {
-      setApiBase(base);
-      return base;
-    })
-    .finally(() => {
-      probing = null;
-    });
-  return probing;
+  if (liveBase && liveBase.until > Date.now()) return liveBase.url;
+  const base = await probeApiBase();
+  rememberBase(base);
+  return base;
 }
 
 function token() {
@@ -262,24 +297,7 @@ async function send(path: string, init: RequestInit, base: string) {
   }
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const headers = new Headers(init.headers);
-  headers.set("Content-Type", "application/json");
-  const t = token();
-  if (t) headers.set("Authorization", `Bearer ${t}`);
-
-  // Поиск живого адреса кидает своё сообщение — второй заход тут не нужен.
-  const base = await currentBase();
-  let res: Response;
-  try {
-    res = await send(path, { ...init, headers }, base);
-  } catch {
-    // Сетевой сбой: DNS, разрыв TLS, блокировка провайдером. Адрес мог быть
-    // жив вчера и умереть сегодня, поэтому забываем его и ищем заново.
-    setApiBase(null);
-    res = await send(path, { ...init, headers }, await currentBase());
-  }
-
+async function readBody<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let message = `Ошибка ${res.status}`;
     try {
@@ -291,6 +309,30 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new Error(message);
   }
   return res.json() as Promise<T>;
+}
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const headers = new Headers(init.headers);
+  headers.set("Content-Type", "application/json");
+  const t = token();
+  if (t) headers.set("Authorization", `Bearer ${t}`);
+
+  let base = await currentBase();
+  try {
+    const res = await send(path, { ...init, headers }, base);
+    rememberBase(base);
+    return await readBody<T>(res);
+  } catch (err) {
+    // Сетевой сбой: DNS, разрыв TLS, блокировка провайдером. Ответ сервера
+    // (неверный PIN, 400) сюда не попадает — повтор такой записи сделал бы дубль.
+    if (!isTransportError(err)) throw err;
+    forgetBase(base);
+    base = await probeApiBase(base);
+    rememberBase(base);
+    const res = await send(path, { ...init, headers }, base);
+    rememberBase(base);
+    return await readBody<T>(res);
+  }
 }
 
 export async function login(inviteCode: string, pin: string, memberName: string) {

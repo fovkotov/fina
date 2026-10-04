@@ -13,3 +13,4 @@ web/.env*.local
 worker/node_modules
 worker/.wrangler
 worker/.vercel
+relay/.netlify

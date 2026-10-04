@@ -17,18 +17,11 @@
 ## Прод
 
 - Веб: **https://fovkotov.github.io/fina/** (GitHub Pages, workflow `.github/workflows/pages.yml`)
-- API: **https://api.fovkotov.lol** (запасной адрес — https://fina-api.fovkotov.workers.dev)
-- Адрес API для сборки Pages лежит в переменной репозитория `FINA_API_BASE`
+- API для телефона: **https://fina-api-door.netlify.app** (`relay/`, прокси на воркер)
+- Воркер: **https://fina-api.fovkotov.workers.dev** (с домашнего Wi-Fi; мобильные операторы режут Cloudflare)
+- `api.fovkotov.lol` сейчас не наш: домен `fovkotov.lol` истёк у REG.RU и смотрит на парковку регистратора. Пока его не продлить, этот адрес мёртв.
 
-### Почему API не на `workers.dev`
-
-Российские операторы режут `*.workers.dev` по SNI: сайт с Pages грузится, а запрос
-к API падает с `Load failed` — на домашнем Wi-Fi всё работает, с мобильного нет.
-Поэтому воркер отвечает на своём домене `api.fovkotov.lol` (зона `fovkotov.lol`
-делегирована на Cloudflare, регистрация осталась в REG.RU).
-
-Записи личного сайта в этой зоне стоят серыми (DNS only) — он как жил на GitHub
-Pages, так и живёт. Старый адрес `workers.dev` оставлен включённым запасным.
+Кабинет на каждый заход сам выбирает первый живой `/api/health`. С мобильного без VPN это дверь на Netlify: телефон до Cloudflare не достаёт, Netlify достаёт.
 
 Если однажды понадобится сменить адрес API: поправить `routes` в
 `worker/wrangler.toml`, задеплоить воркер, затем
