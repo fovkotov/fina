@@ -136,6 +136,27 @@
   }
 }
 
+/*
+ * Зазор между группами разрядов. U+202F остаётся внутри одного числа у torph,
+ * но в запасном шрифте он ~0.12em — группы слипаются. Отдельный шрифт только
+ * на этот знак задаёт ширину 0.28em (+~0.16em) и масштабируется с кеглем.
+ * Margin на глиф не подходит: torph мерит строку в тот же момент, как создаёт
+ * спаны, и класс, повешенный следом, в замер уже не попадает.
+ */
+@font-face {
+  font-family: "Fina Group Gap";
+  src: url("../fonts/fina-group-gap.ttf") format("truetype");
+  unicode-range: U+202F;
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+.money-roll {
+  font-family: "Fina Group Gap", var(--font-heading), sans-serif;
+  font-synthesis-weight: none;
+}
+
 /* —— Press / tap feedback (Emil: 100–160ms, scale 0.97, ease-out) —— */
 .pressable {
   transition:

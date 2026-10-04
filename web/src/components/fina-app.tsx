@@ -71,6 +71,7 @@ const HIDDEN_MONEY = "••••••";
  * Сумма для пересчёта разрядов. Обычный формат денег кладёт nbsp между группами
  * и перед ₽ — torph режет строку на слова и меняет цифры целиком. Узкий пробел
  * остаётся внутри одного числа, знак рубля стоит рядом и не крутится.
+ * Сам пробел узкий; ширину группы задаёт шрифт `.money-roll`, не другой символ.
  */
 function formatRollingMoney(cents: number) {
   return new Intl.NumberFormat("ru-RU", {
@@ -99,6 +100,7 @@ function RollingMoney({
     <>
       <TextMorph
         as="span"
+        className="money-roll"
         locale="ru"
         numbers
         duration={400}
