@@ -262,6 +262,15 @@ function amountPrefix(type: TransactionType) {
   return "+";
 }
 
+/** Пополнение, проценты и кэшбэк приходят на счёт — цифра зелёная. */
+function amountTone(type: TransactionType) {
+  if (type === "withdrawal") return "text-destructive";
+  if (type === "deposit" || type === "interest" || type === "cashback") {
+    return "text-emerald-600 dark:text-emerald-400";
+  }
+  return "text-foreground";
+}
+
 /** Год в заголовке не пишем — его отбивает отдельная линия при смене. */
 function monthLabel(date: Date) {
   const label = date.toLocaleDateString("ru-RU", { month: "long" });
@@ -1311,7 +1320,7 @@ export function FinaApp() {
                       </div>
                       <div className="row-swap shrink-0">
                         <span
-                          className={`row-amount text-sm font-semibold tabular-nums ${tx.type === "withdrawal" ? "text-destructive" : "text-foreground"}`}
+                          className={`row-amount text-sm font-semibold tabular-nums ${amountTone(tx.type)}`}
                         >
                           <TextMorph as="span" locale="ru" duration={200}>
                             {`${amountPrefix(tx.type)}${formatMoney(tx.amountCents)}`}
