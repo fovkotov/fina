@@ -1,0 +1,9 @@
+{
+  "$schema": "https://layero.ru/schema/layero-v2.json",
+  "runtime": "node_web",
+  "nodeVersion": "22",
+  "installCommand": "node -e \"process.exit(0)\"",
+  "buildCommand": "node -e \"process.exit(0)\"",
+  "startCommand": "node door/server.mjs",
+  "port": 3000
+}

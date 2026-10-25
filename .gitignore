@@ -14,3 +14,7 @@ worker/node_modules
 worker/.wrangler
 worker/.vercel
 relay/.netlify
+
+# Сборка двери на Layero: в git не кладём, в деплой попадает через .layeroignore
+door/public/
+door/api/

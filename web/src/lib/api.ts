@@ -138,8 +138,14 @@ export function applyPending(base: Summary, pending: Transaction[]): Summary {
 /** Базовый URL API. Пусто — значит тот же origin. */
 const DEFAULT_API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "").replace(/\/$/, "");
 const API_BASE_KEY = "fina-api-base";
-const REQUEST_TIMEOUT_MS = 12_000;
-const PROBE_TIMEOUT_MS = 4_000;
+/**
+ * Копия на Layero: телефон говорит только со своим адресом. Чужие двери не
+ * опрашиваем — с мобильного они молчат до таймаута. Холодный старт там до ~20 с,
+ * поэтому и проверка, и сам запрос ждут дольше.
+ */
+const SAME_ORIGIN = process.env.NEXT_PUBLIC_SAME_ORIGIN === "1";
+const REQUEST_TIMEOUT_MS = SAME_ORIGIN ? 35_000 : 12_000;
+const PROBE_TIMEOUT_MS = SAME_ORIGIN ? 35_000 : 4_000;
 const LIVE_BASE_MS = 30_000;
 
 /**
@@ -151,13 +157,15 @@ const LIVE_BASE_MS = 30_000;
  * Дверь на Netlify жива с мобильного интернета: телефон говорит с ней, а она
  * уже зовёт воркер. Порядок не важен — берём первый ответ /api/health.
  */
-const API_BASES = [
-  "https://fina-api-door.netlify.app",
-  DEFAULT_API_BASE,
-  "https://fina-api-orpin.vercel.app",
-  "https://api-cf.fovkotov.lol",
-  "https://fina-api.fovkotov.workers.dev",
-].filter((base, i, all) => base && all.indexOf(base) === i);
+const API_BASES = SAME_ORIGIN
+  ? [""]
+  : [
+      "https://fina-api-door.netlify.app",
+      DEFAULT_API_BASE,
+      "https://fina-api-orpin.vercel.app",
+      "https://api-cf.fovkotov.lol",
+      "https://fina-api.fovkotov.workers.dev",
+    ].filter((base, i, all) => Boolean(base) && all.indexOf(base) === i);
 
 /**
  * Приватный режим Safari умеет ронять localStorage — тогда живём в памяти:
@@ -220,7 +228,8 @@ function forgetBase(url: string) {
 
 function basesToProbe(skip?: string) {
   const saved = store.get(API_BASE_KEY)?.replace(/\/$/, "") ?? "";
-  return [...new Set([saved, ...API_BASES])].filter((base) => base && base !== skip);
+  const list = SAME_ORIGIN ? [""] : [...new Set(saved ? [saved, ...API_BASES] : API_BASES)];
+  return list.filter((base) => base !== skip);
 }
 
 function isTransportError(err: unknown) {

@@ -1,0 +1,5 @@
+# Собранная дверь не в git, но на Layero она и есть сайт.
+!door/public/
+!door/public/**
+!door/api/
+!door/api/**
