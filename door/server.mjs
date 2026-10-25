@@ -3,9 +3,8 @@ import { stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { handleApiRequest } from "./api/index.js";
 
-const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "public");
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "public");
 const port = Number(process.env.PORT || 3000);
 
 const types = {
@@ -24,6 +23,10 @@ const types = {
   ".woff2": "font/woff2",
 };
 
+// Документ просим положить на edge. Хэшированные файлы из public/
+// платформа забирает туда сама и не будит процесс.
+const SHELL_CACHE = "public, max-age=0, s-maxage=300, stale-while-revalidate=86400";
+
 function runtimeEnv() {
   return {
     GITHUB_TOKEN: process.env.GITHUB_TOKEN ?? "",
@@ -33,6 +36,22 @@ function runtimeEnv() {
   };
 }
 
+let apiPromise;
+
+function loadApi() {
+  if (!apiPromise) {
+    apiPromise = import("./api/index.js").catch((error) => {
+      apiPromise = null;
+      throw error;
+    });
+  }
+  return apiPromise;
+}
+
+function warmApi() {
+  loadApi().catch(() => {});
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -40,6 +59,20 @@ function readBody(req) {
     req.on("end", () => resolve(Buffer.concat(chunks)));
     req.on("error", reject);
   });
+}
+
+function writeHealth(req, res) {
+  const origin = req.headers.origin || "*";
+  res.writeHead(200, {
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store",
+    "access-control-allow-origin": origin,
+    "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
+    "access-control-allow-headers": "Authorization,Content-Type",
+    "access-control-max-age": "86400",
+    vary: "Origin",
+  });
+  res.end('{"ok":true,"service":"fina"}');
 }
 
 async function fileToServe(urlPath) {
@@ -69,7 +102,14 @@ const server = createServer(async (req, res) => {
     const host = req.headers.host || "localhost";
     const url = new URL(req.url || "/", `http://${host}`);
 
+    if (url.pathname === "/api/health") {
+      warmApi();
+      writeHealth(req, res);
+      return;
+    }
+
     if (url.pathname.startsWith("/api")) {
+      const { handleApiRequest } = await loadApi();
       const headers = new Headers();
       for (const [key, value] of Object.entries(req.headers)) {
         if (value == null) continue;
@@ -95,9 +135,15 @@ const server = createServer(async (req, res) => {
       return;
     }
     const hashed = file.includes(`${path.sep}_next${path.sep}`);
+    const html = path.extname(file) === ".html";
+    if (html) warmApi();
     res.writeHead(200, {
       "content-type": types[path.extname(file)] || "application/octet-stream",
-      "cache-control": hashed ? "public, max-age=31536000, immutable" : "no-cache",
+      "cache-control": hashed
+        ? "public, max-age=31536000, immutable"
+        : html
+          ? SHELL_CACHE
+          : "no-cache",
     });
     createReadStream(file).pipe(res);
   } catch (error) {

@@ -1,5 +1,6 @@
 # Собранная дверь не в git, но на Layero она и есть сайт.
-!door/public/
-!door/public/**
+# public/ edge забирает себе; door/api остаётся у процесса.
+!public/
+!public/**
 !door/api/
 !door/api/**

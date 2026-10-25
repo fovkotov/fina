@@ -43,7 +43,7 @@ NEXT_PUBLIC_API_BASE=http://localhost:8787 npm run dev   # http://localhost:3000
 
 ```bash
 cd worker && npx wrangler deploy        # API на Cloudflare
-npm run door:build                      # кабинет в door/public, затем layero deploy
+npm run door:build                      # кабинет в public/, затем layero deploy
 git push origin main                    # на Pages уедет только объявление о переезде
 ```
 

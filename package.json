@@ -6,6 +6,6 @@
     "web": "npm --prefix web run dev",
     "web:build": "npm --prefix web run build",
     "api": "npm --prefix worker run dev",
-    "door:build": "npm --prefix worker exec -- tsc -p worker/tsconfig.door.json && cd web && GITHUB_PAGES=true PAGES_BASE_PATH= NEXT_PUBLIC_SAME_ORIGIN=1 npx next build && rm -rf ../door/public && cp -R out ../door/public"
+    "door:build": "npm --prefix worker exec -- tsc -p worker/tsconfig.door.json && cd web && GITHUB_PAGES=true PAGES_BASE_PATH= NEXT_PUBLIC_SAME_ORIGIN=1 npx next build && rm -rf ../public && cp -R out ../public"
   }
 }
