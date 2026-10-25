@@ -459,6 +459,7 @@ export function FinaApp() {
   const opTypeSeeded = useRef(false);
   const [shakeError, setShakeError] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [mountScreen, setMountScreen] = useState(false);
   const [hideBalances, setHideBalances] = useState(false);
   const [editing, setEditing] = useState<EditDraft | null>(null);
   /** Операция, для которой открыт попап подтверждения удаления. */
@@ -468,12 +469,18 @@ export function FinaApp() {
   const [pressingId, setPressingId] = useState<string | null>(null);
   const longPress = useRef<{ timer: number; x: number; y: number } | null>(null);
 
+  // Появление заново на каждом экране. Сброс прямо в рендере, иначе Safari
+  // успевает нарисовать кабинет уже в конечном состоянии и анимацию пропускает.
+  if (mountScreen !== loggedIn) {
+    setMountScreen(loggedIn);
+    setMounted(false);
+  }
+
   useEffect(() => {
     bind();
     applyApiFromUrl();
     setInviteCode(inviteFromUrl());
     if (readFlag(HIDE_BALANCES_KEY)) setHideBalances(true);
-    requestAnimationFrame(() => setMounted(true));
     // Сессия есть — шапку рисуем из маленького кэша сразу, список читаем следующим кадром.
     if (savedMember() && savedToken()) {
       const cached = readSummaryCache();
@@ -500,6 +507,18 @@ export function FinaApp() {
       void refresh({ background: Boolean(cached), silent: Boolean(cached) });
     }
   }, []);
+
+  useEffect(() => {
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      void document.documentElement.offsetHeight;
+      inner = requestAnimationFrame(() => setMounted(true));
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+    };
+  }, [loggedIn]);
 
   /**
    * В кэш кладём только подтверждённое: иначе после перезапуска на экране
@@ -1005,6 +1024,7 @@ export function FinaApp() {
         <div className="grid items-start gap-4 lg:grid-cols-[var(--composer-field)_480px] lg:gap-x-12">
           <div className="grid gap-4 lg:sticky lg:top-8 lg:self-start">
             <section
+              data-mounted={mounted ? "true" : "false"}
               className={`surface-enter grid gap-4 ${summary ? "content-ready" : "content-busy"}`}
             >
               <div className="grid gap-1.5">
@@ -1110,7 +1130,7 @@ export function FinaApp() {
 
           {/* На мобилке список сразу под композером, без второй линейки:
               черта остаётся только между цифрами и полем. */}
-          <div className="mt-8 lg:mt-0">
+          <div className="mt-8 lg:mt-0" data-appear={mounted ? "true" : "false"}>
             {months.map((month, i) => (
               /* Воздух после месяца — in-flow after:h-10, не pb: padding
                  не держит sticky. Плашка живёт, пока не приедет следующая. */
