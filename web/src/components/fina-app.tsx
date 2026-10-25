@@ -72,40 +72,87 @@ const HIDDEN_MONEY = "••••••";
  * и перед ₽ — torph режет строку на слова и меняет цифры целиком. Узкий пробел
  * остаётся внутри одного числа, знак рубля стоит рядом и не крутится.
  */
-function formatRollingMoney(cents: number) {
+function moneyParts(cents: number) {
   return new Intl.NumberFormat("ru-RU", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })
-    .formatToParts(cents / 100)
+  }).formatToParts(cents / 100);
+}
+
+function formatRollingMoney(cents: number) {
+  return moneyParts(cents)
     .map((part) => (part.type === "group" ? "\u202F" : part.value))
     .join("");
 }
+
+/**
+ * Крупная сумма: группы разрядов отдельно, между ними узкий пробел.
+ * Ключи справа, чтобы новый разряд слева не перезапускал анимацию копеек.
+ */
+function wideMoneyPieces(cents: number) {
+  const pieces: { gap: boolean; text: string }[] = [];
+  let buf = "";
+  for (const part of moneyParts(Math.abs(cents))) {
+    if (part.type === "group") {
+      if (buf) pieces.push({ gap: false, text: buf });
+      buf = "";
+      pieces.push({ gap: true, text: "\u202F" });
+    } else {
+      buf += part.value;
+    }
+  }
+  if (buf) pieces.push({ gap: false, text: buf });
+  return pieces;
+}
+
+const moneyMorph = {
+  as: "span" as const,
+  locale: "ru",
+  numbers: true,
+  duration: 400,
+  ease: "cubic-bezier(0.23, 1, 0.32, 1)",
+};
 
 /** Разряды крутятся, ₽ стоит рядом. `sign` — для дельты, где плюс тоже явный. */
 function RollingMoney({
   cents,
   hidden = false,
   sign,
+  wideGroups = false,
 }: {
   cents: number;
   hidden?: boolean;
   sign?: "+" | "−";
+  /** Узкий пробел между сотнями в полтора раза шире. Только у крупной суммы. */
+  wideGroups?: boolean;
 }) {
+  if (!hidden && wideGroups) {
+    const pieces = wideMoneyPieces(cents);
+    const fromEnd = pieces.length;
+    return (
+      <>
+        {pieces.map((piece, i) =>
+          piece.gap ? (
+            <span key={`gap-${fromEnd - i}`} className="group-gap" aria-hidden="true">
+              {"\u202F"}
+            </span>
+          ) : (
+            <TextMorph key={`num-${fromEnd - i}`} {...moneyMorph}>
+              {piece.text}
+            </TextMorph>
+          ),
+        )}
+        {"\u00A0₽"}
+      </>
+    );
+  }
+
   const text = hidden
     ? HIDDEN_MONEY
     : `${sign ?? ""}${formatRollingMoney(sign ? Math.abs(cents) : cents)}`;
   return (
     <>
-      <TextMorph
-        as="span"
-        locale="ru"
-        numbers
-        duration={400}
-        ease="cubic-bezier(0.23, 1, 0.32, 1)"
-      >
-        {text}
-      </TextMorph>
+      <TextMorph {...moneyMorph}>{text}</TextMorph>
       {!hidden && "\u00A0₽"}
     </>
   );
@@ -962,6 +1009,7 @@ export function FinaApp() {
                     <RollingMoney
                       cents={summary?.totalCents ?? 0}
                       hidden={hideBalances}
+                      wideGroups
                     />
                   </span>
                   <Button

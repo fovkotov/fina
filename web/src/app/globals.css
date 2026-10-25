@@ -136,6 +136,16 @@
   }
 }
 
+/* Тот же узкий пробел между сотнями, только в полтора раза шире.
+   Высоту не раздуваем: глиф и так пустой, а line-height от 1.5em
+   иначе раздвинул бы строку. */
+.digit-play .group-gap {
+  display: inline-block;
+  font-size: 1.5em;
+  line-height: 0;
+  vertical-align: baseline;
+}
+
 /* —— Press / tap feedback (Emil: 100–160ms, scale 0.97, ease-out) —— */
 .pressable {
   transition:
