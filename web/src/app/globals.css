@@ -136,7 +136,8 @@
   }
 }
 
-/* Тот же узкий пробел между сотнями, только в полтора раза шире.
+/* Узкий пробел между сотнями. С md и шире — в полтора раза шире,
+   на телефонах (до 768px) — естественная ширина U+202F.
    Высоту не раздуваем: глиф и так пустой, а line-height от 1.5em
    иначе раздвинул бы строку. */
 .digit-play .group-gap {
@@ -144,6 +145,12 @@
   font-size: 1.5em;
   line-height: 0;
   vertical-align: baseline;
+}
+
+@media (max-width: 767px) {
+  .digit-play .group-gap {
+    font-size: 1em;
+  }
 }
 
 /* —— Press / tap feedback (Emil: 100–160ms, scale 0.97, ease-out) —— */
