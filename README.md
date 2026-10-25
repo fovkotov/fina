@@ -16,21 +16,12 @@
 
 ## Прод
 
-- С телефона без VPN: **https://fina.layero.app/** — кабинет и API на одном адресе в России (`door/`). Счёт тот же gist, до GitHub ходит уже сервер, не телефон.
-- Веб: **https://fovkotov.github.io/fina/** (GitHub Pages, workflow `.github/workflows/pages.yml`)
-- API для телефона на старом кабинете: **https://fina-api-door.netlify.app** (`relay/`, прокси на воркер)
+- Кабинет: **https://fina.layero.app/** — веб и API на одном адресе (`door/`, сборка `npm run door:build`). С телефона без VPN это тот же адрес. Счёт тот же gist, до GitHub ходит уже сервер, не телефон.
+- **https://fovkotov.github.io/fina/** — не кабинет. GitHub Pages (`.github/workflows/pages.yml`) отдаёт одну строку: сервис переехал на https://fina.layero.app/.
+- **https://fina-five-sage.vercel.app/** — то же объявление вместо старого веба на Vercel.
+- **https://fina-api-door.vercel.app/** и **https://fina-api-door.netlify.app** (`relay/`) на корне показывают ту же строку, а `/api` по-прежнему проксирует воркер.
 - Воркер: **https://fina-api.fovkotov.workers.dev** (с домашнего Wi-Fi; мобильные операторы режут Cloudflare)
 - `api.fovkotov.lol` сейчас не наш: домен `fovkotov.lol` истёк у REG.RU и смотрит на парковку регистратора. Пока его не продлить, этот адрес мёртв.
-
-Кабинет на каждый заход сам выбирает первый живой `/api/health`. С мобильного без VPN это дверь на Netlify: телефон до Cloudflare не достаёт, Netlify достаёт.
-
-Если однажды понадобится сменить адрес API: поправить `routes` в
-`worker/wrangler.toml`, задеплоить воркер, затем
-`gh variable set FINA_API_BASE --body https://новый-адрес` и `gh workflow run pages.yml`.
-
-Кабинет умеет переключаться на другой API и без пересборки: открыть
-`https://fovkotov.github.io/fina/?api=https://…` — адрес запомнится в браузере,
-`?api=` без значения возвращает всё обратно.
 
 ## Локальный запуск
 
@@ -51,8 +42,9 @@ NEXT_PUBLIC_API_BASE=http://localhost:8787 npm run dev   # http://localhost:3000
 ## Деплой
 
 ```bash
-cd worker && npx wrangler deploy        # API
-git push origin main                    # веб уедет на Pages сам
+cd worker && npx wrangler deploy        # API на Cloudflare
+npm run door:build                      # кабинет в door/public, затем layero deploy
+git push origin main                    # на Pages уедет только объявление о переезде
 ```
 
 Секрет обновляется так: `cd worker && npx wrangler secret put GITHUB_TOKEN`.

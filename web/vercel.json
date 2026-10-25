@@ -1,3 +1,7 @@
 {
-  "framework": "nextjs"
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "echo skip-install",
+  "buildCommand": "npm run build:pages",
+  "outputDirectory": "out"
 }

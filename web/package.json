@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:pages": "GITHUB_PAGES=true next build",
+    "build:pages": "rm -rf out && mkdir -p out && cp pages-stub/index.html out/index.html && cp pages-stub/index.html out/404.html && touch out/.nojekyll",
     "start": "next start",
     "lint": "eslint"
   },
