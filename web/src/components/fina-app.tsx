@@ -1124,6 +1124,7 @@ export function FinaApp() {
                 onAmountChange={setOpAmount}
                 onSubmit={submitOp}
                 disabled={!summary}
+                mounted={mounted}
               />
             </section>
           </div>

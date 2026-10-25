@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import Image from "next/image";
 import { X } from "lucide-react";
 import { TextMorph } from "torph/react";
@@ -25,6 +25,30 @@ export function formatAmountInput(value: string) {
   const digits = digitsOf(value).replace(/^0+(?=\d)/, "");
   if (!digits) return "";
   return digits.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
+
+/** Чужой фокус не забираем: за два кадра появления человек мог уже тапнуть поле. */
+function focusIsFree(el: HTMLElement) {
+  const active = document.activeElement;
+  return (
+    active == null ||
+    active === document.body ||
+    active === document.documentElement ||
+    active === el
+  );
+}
+
+/** iOS не фокусирует opacity: 0, display:none и visibility:hidden. */
+function fieldIsShown(el: HTMLElement) {
+  let node: HTMLElement | null = el;
+  while (node) {
+    const style = getComputedStyle(node);
+    if (style.display === "none" || style.visibility === "hidden") return false;
+    const opacity = Number.parseFloat(style.opacity);
+    if (Number.isFinite(opacity) && opacity < 0.05) return false;
+    node = node.parentElement;
+  }
+  return true;
 }
 
 function MemberAvatar({
@@ -83,6 +107,8 @@ type Props = {
   onAmountChange: (amount: string) => void;
   onSubmit: () => void;
   disabled?: boolean;
+  /** Кадр появления кабинета. Раньше него iOS молча глотает focus(). */
+  mounted: boolean;
 };
 
 export function TxComposer({
@@ -99,6 +125,7 @@ export function TxComposer({
   onAmountChange,
   onSubmit,
   disabled,
+  mounted,
 }: Props) {
   const amountRef = useRef<HTMLInputElement>(null);
 
@@ -114,18 +141,34 @@ export function TxComposer({
     }
   }
 
-  // autoFocus на iOS часто молчит — дублируем фокус после гидрации и из bfcache.
+  // Пока карточка с opacity 0, iOS сбрасывает focus() и сам не повторяет.
+  // Зовем один раз, когда data-mounted уже true и поле реально нарисовано.
   useLayoutEffect(() => {
-    focusAmount();
-    const raf = requestAnimationFrame(focusAmount);
+    if (!mounted) return;
+    let raf = 0;
+    let tries = 0;
+    const tick = () => {
+      const el = amountRef.current;
+      if (!el || !focusIsFree(el)) return;
+      if (!fieldIsShown(el)) {
+        if (tries++ < 24) raf = requestAnimationFrame(tick);
+        return;
+      }
+      focusAmount();
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [mounted]);
+
+  useEffect(() => {
     const onPageShow = (e: PageTransitionEvent) => {
-      if (e.persisted) focusAmount();
+      if (!e.persisted) return;
+      const el = amountRef.current;
+      if (!el || !focusIsFree(el) || !fieldIsShown(el)) return;
+      focusAmount();
     };
     window.addEventListener("pageshow", onPageShow);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("pageshow", onPageShow);
-    };
+    return () => window.removeEventListener("pageshow", onPageShow);
   }, []);
 
   const isTransfer = special === "transfer";
@@ -262,7 +305,6 @@ export function TxComposer({
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
-          autoFocus
           enterKeyHint="done"
           aria-label="Сумма"
           // w-0: без явной ширины поле держит интринсик ~20 символов и распирает страницу
