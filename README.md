@@ -16,8 +16,9 @@
 
 ## Прод
 
+- С телефона без VPN: **https://fina.layero.app/** — кабинет и API на одном адресе в России (`door/`). Счёт тот же gist, до GitHub ходит уже сервер, не телефон.
 - Веб: **https://fovkotov.github.io/fina/** (GitHub Pages, workflow `.github/workflows/pages.yml`)
-- API для телефона: **https://fina-api-door.netlify.app** (`relay/`, прокси на воркер)
+- API для телефона на старом кабинете: **https://fina-api-door.netlify.app** (`relay/`, прокси на воркер)
 - Воркер: **https://fina-api.fovkotov.workers.dev** (с домашнего Wi-Fi; мобильные операторы режут Cloudflare)
 - `api.fovkotov.lol` сейчас не наш: домен `fovkotov.lol` истёк у REG.RU и смотрит на парковку регистратора. Пока его не продлить, этот адрес мёртв.
 

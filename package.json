@@ -1,6 +1,7 @@
 {
   "name": "fina",
   "private": true,
+  "type": "module",
   "scripts": {
     "web": "npm --prefix web run dev",
     "web:build": "npm --prefix web run build",
