@@ -305,6 +305,17 @@ function calendarMonthKey(now = new Date()) {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
+/** Сколько внесли за текущий календарный месяц. Списания и начисления не считаем. */
+function depositedThisMonth(list: Transaction[], now = new Date()) {
+  const currentKey = calendarMonthKey(now);
+  let cents = 0;
+  for (const tx of list) {
+    if (tx.type !== "deposit" || monthKeyOf(tx.occurredAt) !== currentKey) continue;
+    cents += tx.amountCents;
+  }
+  return cents;
+}
+
 /** Насколько цифра выросла за текущий календарный месяц — против конца прошлого. */
 function monthOverMonth(list: Transaction[], now = new Date()) {
   const currentKey = calendarMonthKey(now);
@@ -933,6 +944,7 @@ export function FinaApp() {
 
   const months = useMemo(() => groupByMonth(transactions), [transactions]);
   const mom = useMemo(() => monthOverMonth(transactions), [transactions]);
+  const monthDeposits = useMemo(() => depositedThisMonth(transactions), [transactions]);
 
   if (!loggedIn) {
     return (
@@ -1054,6 +1066,7 @@ export function FinaApp() {
                     {hideBalances ? <EyeOff /> : <Eye />}
                   </Button>
                 </div>
+                {!hideBalances && <MomDelta cents={monthDeposits} />}
               </div>
               {/* 24px до крупной суммы: 16 из gap секции плюс свои 8. */}
               <div className="mt-2 grid grid-cols-2 gap-4">
