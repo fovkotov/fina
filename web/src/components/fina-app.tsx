@@ -305,18 +305,11 @@ function calendarMonthKey(now = new Date()) {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-/** Сколько внесли за текущий календарный месяц. Списания и начисления не считаем. */
-function depositedThisMonth(list: Transaction[], now = new Date()) {
-  const currentKey = calendarMonthKey(now);
-  let cents = 0;
-  for (const tx of list) {
-    if (tx.type !== "deposit" || monthKeyOf(tx.occurredAt) !== currentKey) continue;
-    cents += tx.amountCents;
-  }
-  return cents;
-}
-
-/** Насколько цифра выросла за текущий календарный месяц — против конца прошлого. */
+/**
+ * Насколько цифра выросла за текущий календарный месяц — против конца прошлого.
+ * `totalCents` — весь капитал: внесения, списания и начисления. Перевод внутри
+ * семьи сумму не двигает.
+ */
 function monthOverMonth(list: Transaction[], now = new Date()) {
   const currentKey = calendarMonthKey(now);
   const hasPreviousMonth = list.some((tx) => monthKeyOf(tx.occurredAt) < currentKey);
@@ -324,16 +317,24 @@ function monthOverMonth(list: Transaction[], now = new Date()) {
 
   const members: Record<string, number> = {};
   let accrualsCents = 0;
+  let totalCents = 0;
   for (const tx of list) {
     if (monthKeyOf(tx.occurredAt) !== currentKey) continue;
     if (tx.type === "interest" || tx.type === "cashback") {
       accrualsCents += tx.amountCents;
+      totalCents += tx.amountCents;
       continue;
     }
-    if (tx.type === "deposit" && tx.memberId) {
-      members[tx.memberId] = (members[tx.memberId] ?? 0) + tx.amountCents;
-    } else if (tx.type === "withdrawal" && tx.memberId) {
-      members[tx.memberId] = (members[tx.memberId] ?? 0) - tx.amountCents;
+    if (tx.type === "deposit") {
+      totalCents += tx.amountCents;
+      if (tx.memberId) {
+        members[tx.memberId] = (members[tx.memberId] ?? 0) + tx.amountCents;
+      }
+    } else if (tx.type === "withdrawal") {
+      totalCents -= tx.amountCents;
+      if (tx.memberId) {
+        members[tx.memberId] = (members[tx.memberId] ?? 0) - tx.amountCents;
+      }
     } else if (tx.type === "transfer") {
       if (tx.memberId) {
         members[tx.memberId] = (members[tx.memberId] ?? 0) - tx.amountCents;
@@ -343,7 +344,7 @@ function monthOverMonth(list: Transaction[], now = new Date()) {
       }
     }
   }
-  return { members, accrualsCents };
+  return { members, accrualsCents, totalCents };
 }
 
 function MomDelta({ cents }: { cents: number | null | undefined }) {
@@ -944,7 +945,6 @@ export function FinaApp() {
 
   const months = useMemo(() => groupByMonth(transactions), [transactions]);
   const mom = useMemo(() => monthOverMonth(transactions), [transactions]);
-  const monthDeposits = useMemo(() => depositedThisMonth(transactions), [transactions]);
 
   if (!loggedIn) {
     return (
@@ -1066,7 +1066,7 @@ export function FinaApp() {
                     {hideBalances ? <EyeOff /> : <Eye />}
                   </Button>
                 </div>
-                {!hideBalances && <MomDelta cents={monthDeposits} />}
+                {!hideBalances && <MomDelta cents={mom?.totalCents} />}
               </div>
               {/* 24px до крупной суммы: 16 из gap секции плюс свои 8. */}
               <div className="mt-2 grid grid-cols-2 gap-4">
