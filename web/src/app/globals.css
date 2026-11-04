@@ -300,12 +300,14 @@
   animation: none;
 }
 
+/* backwards, не both: после кадра transform должен отпуститься.
+   Иначе у каждой строки остаётся matrix() и телефон лагает на скролле. */
 .surface-enter[data-mounted="true"] .stagger-item,
 [data-appear="true"] .stagger-item {
   animation-name: stagger-in;
   animation-duration: 220ms;
   animation-timing-function: var(--ease-out);
-  animation-fill-mode: both;
+  animation-fill-mode: backwards;
 }
 
 .stagger-item:nth-child(1) { animation-delay: 0ms; }

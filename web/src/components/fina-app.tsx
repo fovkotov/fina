@@ -477,12 +477,19 @@ function TxRowBody({
         </p>
       </div>
       <div className="row-swap shrink-0">
+        {/* Историческая сумма не меняется. TextMorph на каждой строке — это
+            тысячи torph-item и лаг скролла на телефоне. Крутим только черновик,
+            который только что появился. */}
         <span
           className={`row-amount text-sm font-semibold tabular-nums ${amountTone(tx.type)}`}
         >
-          <TextMorph as="span" locale="ru" duration={200}>
-            {`${amountPrefix(tx.type)}${formatMoney(tx.amountCents)}`}
-          </TextMorph>
+          {tx.pending ? (
+            <TextMorph as="span" locale="ru" duration={200}>
+              {`${amountPrefix(tx.type)}${formatMoney(tx.amountCents)}`}
+            </TextMorph>
+          ) : (
+            `${amountPrefix(tx.type)}${formatMoney(tx.amountCents)}`
+          )}
         </span>
         <div className="row-actions flex items-center gap-0.5">
           <Button
@@ -569,7 +576,16 @@ export function FinaApp() {
   const [pendingDelete, setPendingDelete] = useState<Transaction | null>(null);
   /** Строка, у которой открыты действия: на тапскрине — по долгому нажатию. */
   const [revealedId, setRevealedId] = useState<string | null>(null);
-  const [pressingId, setPressingId] = useState<string | null>(null);
+  /** Утапливание строки без setState: иначе каждый скролл перерисовывает весь список. */
+  const pressRow = useRef<HTMLElement | null>(null);
+  /** Жесты списка читаем в момент события: сам список не собирается заново на каждый символ суммы. */
+  const gestureLive = useRef({
+    onRowPointerDown: (_e: React.PointerEvent, _tx: Transaction) => {},
+    startEdit: (_tx: Transaction) => {},
+    askRemove: (_tx: Transaction) => {},
+    saveEdit: (_e: FormEvent) => {},
+    cancelEdit: () => {},
+  });
   /** Поднятая строка. Пока палец не отпущен в другом слоте, сервер не трогаем. */
   const [drag, setDrag] = useState<RowDrag | null>(null);
   const longPress = useRef<{ timer: number; pointerId: number } | null>(null);
@@ -781,6 +797,13 @@ export function FinaApp() {
    * Сдвиг до порога — это скролл, жест забываем.
    * Отмена (Esc, потеря указателя) возвращает порядок без сети.
    */
+  function clearPress() {
+    const row = pressRow.current;
+    if (!row) return;
+    delete row.dataset.pressing;
+    pressRow.current = null;
+  }
+
   function endGesture() {
     gestureCleanup.current?.();
     gestureCleanup.current = null;
@@ -788,10 +811,12 @@ export function FinaApp() {
       window.clearTimeout(longPress.current.timer);
       longPress.current = null;
     }
+    clearPress();
+    const wasDragging = dragRef.current !== null;
     dragRef.current = null;
-    setDrag(null);
-    setPressingId(null);
     document.documentElement.classList.remove("tx-dragging");
+    // Скролл тоже начинается с pointerdown. setState здесь перерисовывал все строки.
+    if (wasDragging) setDrag(null);
   }
 
   function onRowPointerDown(e: React.PointerEvent, tx: Transaction) {
@@ -807,7 +832,6 @@ export function FinaApp() {
     const startY = e.clientY;
     let armed = false;
     let mode: "press" | "drag" = "press";
-    setPressingId(tx.id);
 
     const blockTouch = (ev: TouchEvent) => {
       // Слушатель повешен сразу в pointerdown, иначе iOS уже не даст отменить скролл.
@@ -831,8 +855,8 @@ export function FinaApp() {
       else if (session.y > view - edge) {
         speed = ((session.y - (view - edge)) / edge) * 14;
       }
-      if (!speed) return;
-      window.scrollBy(0, speed);
+      if (speed) window.scrollBy(0, speed);
+      // Слот считаем раз в кадр, не на каждый pointermove: иначе layout на всех строках.
       const next = dropIndexAt(session.y, session.id);
       if (next !== session.index) {
         session.index = next;
@@ -859,7 +883,7 @@ export function FinaApp() {
         y: ev.clientY,
       };
       dragRef.current = session;
-      setPressingId(null);
+      clearPress();
       setRevealedId(null);
       setDrag({
         id: session.id,
@@ -881,11 +905,6 @@ export function FinaApp() {
       session.y = ev.clientY;
       const lift = liftRef.current;
       if (lift) lift.style.top = `${ev.clientY - session.grabOffset}px`;
-      const next = dropIndexAt(ev.clientY, session.id);
-      if (next !== session.index) {
-        session.index = next;
-        setDrag((prev) => (prev ? { ...prev, index: next } : prev));
-      }
     };
 
     const onMove = (ev: PointerEvent) => {
@@ -931,6 +950,8 @@ export function FinaApp() {
     const timer = window.setTimeout(() => {
       if (longPress.current?.pointerId !== pointerId) return;
       armed = true;
+      pressRow.current = row;
+      row.dataset.pressing = "true";
       navigator.vibrate?.(8);
       sfx("nav");
     }, HOLD_MS);
@@ -1276,6 +1297,225 @@ export function FinaApp() {
   const months = useMemo(() => groupByMonth(ordered), [ordered]);
   const lifted = drag ? (ordered.find((t) => t.id === drag.id) ?? null) : null;
   const mom = useMemo(() => monthOverMonth(transactions), [transactions]);
+  gestureLive.current = { onRowPointerDown, startEdit, askRemove, saveEdit, cancelEdit };
+  // Поле суммы живёт в этом же компоненте. Без этой границы каждый символ
+  // заново собирает все строки — на телефоне ввод начинает лагать.
+  const ledger = useMemo(() => {
+    const live = gestureLive;
+    return (
+      <div className="mt-8 lg:mt-0" data-appear={mounted ? "true" : "false"}>
+        {months.map((month, i) => (
+          /* Воздух после месяца — in-flow after:h-10, не pb: padding
+             не держит sticky. Плашка живёт, пока не приедет следующая. */
+          <section key={month.key} className="space-y-1">
+            <div
+              className={`space-y-1 ${
+                months[i + 1] && !months[i + 1].showYear ? "after:block after:h-10" : ""
+              }`}
+            >
+              <div className="bg-background sticky top-2 z-10 -mx-2 shadow-[0_-8px_0_0_var(--background)]">
+                <div className="bg-muted flex items-baseline justify-between gap-3 rounded-lg px-2 py-1.5">
+                  <h3 className="text-muted-foreground text-xs font-medium">{month.label}</h3>
+                  <p
+                    className={`text-xs font-medium tabular-nums ${month.totalCents < 0 ? "text-destructive/80" : "text-muted-foreground"}`}
+                  >
+                    {`${month.totalCents < 0 ? "−" : "+"}${formatMoney(Math.abs(month.totalCents))}`}
+                  </p>
+                </div>
+              </div>
+
+              {month.items.map((tx) =>
+                drag?.id === tx.id ? (
+                  <div
+                    key={tx.id}
+                    className="tx-gap"
+                    style={{ height: drag.height }}
+                    aria-hidden
+                  />
+                ) : editing?.id === tx.id ? (
+                  <form
+                    key={tx.id}
+                    className="bg-muted/30 my-1 grid gap-3 rounded-xl border p-3"
+                    onSubmit={(e) => live.current.saveEdit(e)}
+                  >
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="grid gap-2">
+                        <Label>Тип</Label>
+                        <select
+                          className="field border-input bg-background h-10 rounded-md border px-3 text-base md:text-sm"
+                          value={editing.type}
+                          onChange={(e) => {
+                            sfx("nav");
+                            const nextType = e.target.value as TransactionType;
+                            const toMemberId =
+                              nextType === "transfer" &&
+                              (!editing.toMemberId || editing.toMemberId === editing.memberId)
+                                ? otherMemberId(summary?.members ?? [], editing.memberId)
+                                : editing.toMemberId;
+                            setEditing({
+                              ...editing,
+                              type: nextType,
+                              toMemberId,
+                            });
+                          }}
+                        >
+                          {ALL_TYPES.map((t) => (
+                            <option key={t} value={t}>
+                              {TYPE_LABELS[t]}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Сумма</Label>
+                        <Input
+                          value={editing.amount}
+                          onChange={(e) => setEditing({ ...editing, amount: e.target.value })}
+                          inputMode="decimal"
+                          lang="ru"
+                          className="tabular-nums"
+                          autoFocus
+                        />
+                      </div>
+                      {needsMember(editing.type) && (
+                        <div className="grid gap-2">
+                          <Label>
+                            {editing.type === "transfer" ? "От кого" : "Участник"}
+                          </Label>
+                          <select
+                            className="field border-input bg-background h-10 rounded-md border px-3 text-base md:text-sm"
+                            value={editing.memberId}
+                            onChange={(e) => {
+                              sfx("nav");
+                              const memberId = e.target.value;
+                              const toMemberId =
+                                editing.type === "transfer" && memberId === editing.toMemberId
+                                  ? otherMemberId(summary?.members ?? [], memberId)
+                                  : editing.toMemberId;
+                              setEditing({ ...editing, memberId, toMemberId });
+                            }}
+                          >
+                            {(summary?.members ?? []).map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      {editing.type === "transfer" && (
+                        <div className="grid gap-2">
+                          <Label>Кому</Label>
+                          <select
+                            className="field border-input bg-background h-10 rounded-md border px-3 text-base md:text-sm"
+                            value={editing.toMemberId}
+                            onChange={(e) => {
+                              sfx("nav");
+                              const toMemberId = e.target.value;
+                              const memberId =
+                                toMemberId === editing.memberId
+                                  ? otherMemberId(summary?.members ?? [], toMemberId)
+                                  : editing.memberId;
+                              setEditing({ ...editing, memberId, toMemberId });
+                            }}
+                          >
+                            {(summary?.members ?? []).map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      <div className="grid gap-2">
+                        <Label>Дата</Label>
+                        <Input
+                          type="date"
+                          value={editing.date}
+                          onChange={(e) => setEditing({ ...editing, date: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Комментарий</Label>
+                      <Input
+                        value={editing.note}
+                        onChange={(e) => setEditing({ ...editing, note: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        data-cuelume-press={SFX.secondary}
+                        onClick={() => live.current.cancelEdit()}
+                      >
+                        Отмена
+                      </Button>
+                      <Button
+                        type="submit"
+                        size="sm"
+                        disabled={loading}
+                        data-cuelume-press={SFX.primaryPress}
+                      >
+                        Сохранить
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <div
+                    key={tx.id}
+                    data-row-id={tx.id}
+                    data-revealed={revealedId === tx.id ? "true" : "false"}
+                    data-pending={tx.pending ? "true" : "false"}
+                    className="tx-row stagger-item -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2"
+                    onPointerDown={(e) => live.current.onRowPointerDown(e, tx)}
+                    onContextMenu={(e) => e.preventDefault()}
+                  >
+                    <TxRowBody
+                      tx={tx}
+                      onEdit={() => live.current.startEdit(tx)}
+                      onRemove={() => live.current.askRemove(tx)}
+                    />
+                  </div>
+                ),
+              )}
+              {months[i + 1]?.showYear && (
+                <div className="text-muted-foreground flex items-center gap-3 pt-12 pb-4 text-xs font-medium tabular-nums">
+                  <span className="border-border/70 flex-1 border-t" />
+                  {months[i + 1]?.year}
+                  <span className="border-border/70 flex-1 border-t" />
+                </div>
+              )}
+            </div>
+          </section>
+        ))}
+        {txRev < 0 ? (
+          txHydrated && (
+            <p className="text-muted-foreground py-6 text-center text-sm">
+              {txFailed ? "Список не загрузился" : "Загрузка…"}
+            </p>
+          )
+        ) : (
+          !months.length && (
+            <p className="text-muted-foreground py-6 text-center text-sm">Операций пока нет</p>
+          )
+        )}
+      </div>
+    );
+  }, [
+    months,
+    drag,
+    editing,
+    revealedId,
+    summary,
+    loading,
+    mounted,
+    txRev,
+    txHydrated,
+    txFailed,
+  ]);
 
   if (!loggedIn) {
     return (
@@ -1475,232 +1715,7 @@ export function FinaApp() {
 
           {/* На мобилке список сразу под композером, без второй линейки:
               черта остаётся только между цифрами и полем. */}
-          <div className="mt-8 lg:mt-0" data-appear={mounted ? "true" : "false"}>
-            {months.map((month, i) => (
-              /* Воздух после месяца — in-flow after:h-10, не pb: padding
-                 не держит sticky. Плашка живёт, пока не приедет следующая. */
-              <section key={month.key} className="space-y-1">
-                <div
-                  className={`space-y-1 ${
-                    months[i + 1] && !months[i + 1].showYear
-                      ? "after:block after:h-10"
-                      : ""
-                  }`}
-                >
-                  <div className="bg-background sticky top-2 z-10 -mx-2 shadow-[0_-8px_0_0_var(--background)]">
-                    <div className="bg-muted flex items-baseline justify-between gap-3 rounded-lg px-2 py-1.5">
-                      <h3 className="text-muted-foreground text-xs font-medium">
-                        {month.label}
-                      </h3>
-                      <p
-                        className={`text-xs font-medium tabular-nums ${month.totalCents < 0 ? "text-destructive/80" : "text-muted-foreground"}`}
-                      >
-                        <TextMorph as="span" locale="ru" duration={200}>
-                          {`${month.totalCents < 0 ? "−" : "+"}${formatMoney(Math.abs(month.totalCents))}`}
-                        </TextMorph>
-                      </p>
-                    </div>
-                  </div>
-
-                  {month.items.map((tx) =>
-                  drag?.id === tx.id ? (
-                    <div
-                      key={tx.id}
-                      className="tx-gap"
-                      style={{ height: drag.height }}
-                      aria-hidden
-                    />
-                  ) : editing?.id === tx.id ? (
-                    <form
-                      key={tx.id}
-                      className="bg-muted/30 my-1 grid gap-3 rounded-xl border p-3"
-                      onSubmit={saveEdit}
-                    >
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <div className="grid gap-2">
-                          <Label>Тип</Label>
-                          <select
-                            className="field border-input bg-background h-10 rounded-md border px-3 text-base md:text-sm"
-                            value={editing.type}
-                            onChange={(e) => {
-                              sfx("nav");
-                              const nextType = e.target.value as TransactionType;
-                              const toMemberId =
-                                nextType === "transfer" &&
-                                (!editing.toMemberId ||
-                                  editing.toMemberId === editing.memberId)
-                                  ? otherMemberId(
-                                      summary?.members ?? [],
-                                      editing.memberId,
-                                    )
-                                  : editing.toMemberId;
-                              setEditing({
-                                ...editing,
-                                type: nextType,
-                                toMemberId,
-                              });
-                            }}
-                          >
-                            {ALL_TYPES.map((t) => (
-                              <option key={t} value={t}>
-                                {TYPE_LABELS[t]}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label>Сумма</Label>
-                          <Input
-                            value={editing.amount}
-                            onChange={(e) =>
-                              setEditing({ ...editing, amount: e.target.value })
-                            }
-                            inputMode="decimal"
-                            lang="ru"
-                            className="tabular-nums"
-                            autoFocus
-                          />
-                        </div>
-                        {needsMember(editing.type) && (
-                          <div className="grid gap-2">
-                            <Label>
-                              {editing.type === "transfer" ? "От кого" : "Участник"}
-                            </Label>
-                            <select
-                              className="field border-input bg-background h-10 rounded-md border px-3 text-base md:text-sm"
-                              value={editing.memberId}
-                              onChange={(e) => {
-                                sfx("nav");
-                                const memberId = e.target.value;
-                                const toMemberId =
-                                  editing.type === "transfer" &&
-                                  memberId === editing.toMemberId
-                                    ? otherMemberId(
-                                        summary?.members ?? [],
-                                        memberId,
-                                      )
-                                    : editing.toMemberId;
-                                setEditing({ ...editing, memberId, toMemberId });
-                              }}
-                            >
-                              {(summary?.members ?? []).map((m) => (
-                                <option key={m.id} value={m.id}>
-                                  {m.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-                        {editing.type === "transfer" && (
-                          <div className="grid gap-2">
-                            <Label>Кому</Label>
-                            <select
-                              className="field border-input bg-background h-10 rounded-md border px-3 text-base md:text-sm"
-                              value={editing.toMemberId}
-                              onChange={(e) => {
-                                sfx("nav");
-                                const toMemberId = e.target.value;
-                                const memberId =
-                                  toMemberId === editing.memberId
-                                    ? otherMemberId(
-                                        summary?.members ?? [],
-                                        toMemberId,
-                                      )
-                                    : editing.memberId;
-                                setEditing({ ...editing, memberId, toMemberId });
-                              }}
-                            >
-                              {(summary?.members ?? []).map((m) => (
-                                <option key={m.id} value={m.id}>
-                                  {m.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-                        <div className="grid gap-2">
-                          <Label>Дата</Label>
-                          <Input
-                            type="date"
-                            value={editing.date}
-                            onChange={(e) =>
-                              setEditing({ ...editing, date: e.target.value })
-                            }
-                          />
-                        </div>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label>Комментарий</Label>
-                        <Input
-                          value={editing.note}
-                          onChange={(e) =>
-                            setEditing({ ...editing, note: e.target.value })
-                          }
-                        />
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          data-cuelume-press={SFX.secondary}
-                          onClick={cancelEdit}
-                        >
-                          Отмена
-                        </Button>
-                        <Button
-                          type="submit"
-                          size="sm"
-                          disabled={loading}
-                          data-cuelume-press={SFX.primaryPress}
-                        >
-                          Сохранить
-                        </Button>
-                      </div>
-                    </form>
-                  ) : (
-                    <div
-                      key={tx.id}
-                      data-row-id={tx.id}
-                      data-revealed={revealedId === tx.id ? "true" : "false"}
-                      data-pressing={pressingId === tx.id ? "true" : "false"}
-                      data-pending={tx.pending ? "true" : "false"}
-                      className="tx-row stagger-item -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2"
-                      onPointerDown={(e) => onRowPointerDown(e, tx)}
-                      onContextMenu={(e) => e.preventDefault()}
-                    >
-                      <TxRowBody
-                        tx={tx}
-                        onEdit={() => startEdit(tx)}
-                        onRemove={() => askRemove(tx)}
-                      />
-                    </div>
-                  ),
-                )}
-                  {months[i + 1]?.showYear && (
-                    <div className="text-muted-foreground flex items-center gap-3 pt-12 pb-4 text-xs font-medium tabular-nums">
-                      <span className="border-border/70 flex-1 border-t" />
-                      {months[i + 1]?.year}
-                      <span className="border-border/70 flex-1 border-t" />
-                    </div>
-                  )}
-                </div>
-              </section>
-            ))}
-            {txRev < 0 ? (
-              txHydrated && (
-                <p className="text-muted-foreground py-6 text-center text-sm">
-                  {txFailed ? "Список не загрузился" : "Загрузка…"}
-                </p>
-              )
-            ) : (
-              !months.length && (
-                <p className="text-muted-foreground py-6 text-center text-sm">
-                  Операций пока нет
-                </p>
-              )
-            )}
-          </div>
+          {ledger}
         </div>
 
         {/* Выход — последнее, что есть на странице: под обеими колонками. */}
