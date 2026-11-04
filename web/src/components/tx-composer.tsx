@@ -17,14 +17,31 @@ export type SpecialType = "cashback" | "interest" | "transfer";
 const QUICK_AMOUNTS = [1000, 2000, 5000];
 const SPECIAL_TYPES: SpecialType[] = ["cashback", "interest", "transfer"];
 
-export function digitsOf(value: string) {
-  return value.replace(/\D/g, "");
+/** Рубли из поля: пробелы — разряды, запятая или точка — копейки. Пустое и ноль — 0. */
+export function amountToCents(value: string) {
+  const normalized = value.replace(/\s/g, "").replace(",", ".");
+  if (!normalized || normalized === ".") return 0;
+  const n = Number(normalized);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.round(n * 100);
 }
 
+/** Целая часть с пробелами, после запятой — не больше двух копеек. Точка тоже запятая. */
 export function formatAmountInput(value: string) {
-  const digits = digitsOf(value).replace(/^0+(?=\d)/, "");
-  if (!digits) return "";
-  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  const raw = value.replace(/[^\d,.]/g, "").replace(/\./g, ",");
+  if (!raw) return "";
+  const commaAt = raw.indexOf(",");
+  const wholeRaw = (commaAt === -1 ? raw : raw.slice(0, commaAt)).replace(
+    /^0+(?=\d)/,
+    "",
+  );
+  const whole = wholeRaw.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  if (commaAt === -1) return whole;
+  const frac = raw
+    .slice(commaAt + 1)
+    .replace(/\D/g, "")
+    .slice(0, 2);
+  return `${whole || "0"},${frac}`;
 }
 
 /** Чужой фокус не забираем: за два кадра появления человек мог уже тапнуть поле. */
@@ -202,15 +219,20 @@ export function TxComposer({
   }
 
   function applyQuick(value: number) {
-    const current = Number(digitsOf(amount) || 0);
-    onAmountChange(formatAmountInput(String(current + value)));
+    const cents = amountToCents(amount) + value * 100;
+    const rub = Math.floor(cents / 100);
+    const kop = cents % 100;
+    onAmountChange(
+      kop === 0
+        ? formatAmountInput(String(rub))
+        : formatAmountInput(`${rub},${String(kop).padStart(2, "0")}`),
+    );
     focusAmount();
   }
 
   return (
     <form
       className="grid w-full max-w-[var(--composer-field)] gap-[9px]"
-      // сумма форматируется пробелами и не проходит pattern="[0-9]*" у поля
       noValidate
       onSubmit={(e) => {
         e.preventDefault();
@@ -300,8 +322,9 @@ export function TxComposer({
           onChange={(e) => onAmountChange(formatAmountInput(e.target.value))}
           placeholder="скока"
           type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
+          /* numeric на iOS — панель без запятой; pattern="[0-9]*" делает то же. */
+          inputMode="decimal"
+          lang="ru"
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}

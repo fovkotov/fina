@@ -41,7 +41,7 @@ import {
 import { SFX, sfx } from "@/lib/sounds";
 import {
   TxComposer,
-  digitsOf,
+  amountToCents,
   type OpType,
   type SpecialType,
 } from "@/components/tx-composer";
@@ -876,7 +876,7 @@ export function FinaApp() {
   }
 
   async function submitOp() {
-    const value = Number(digitsOf(opAmount));
+    const value = amountToCents(opAmount);
     if (!value) {
       flashError("Введи сумму");
       return;
@@ -888,7 +888,7 @@ export function FinaApp() {
     }
     const body = {
       type,
-      amountCents: value * 100,
+      amountCents: value,
       note: "",
       memberId: needsMember(type) ? opMemberId || null : null,
       toMemberId: type === "transfer" ? opToMemberId || null : null,
@@ -1218,6 +1218,7 @@ export function FinaApp() {
                               setEditing({ ...editing, amount: e.target.value })
                             }
                             inputMode="decimal"
+                            lang="ru"
                             className="tabular-nums"
                             autoFocus
                           />
