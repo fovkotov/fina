@@ -9,6 +9,7 @@ import {
   type FormEvent,
   type MouseEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { TextMorph } from "torph/react";
 import { bind } from "cuelume";
 import { Eye, EyeOff } from "lucide-react";
@@ -27,6 +28,7 @@ import {
   readSummaryCache,
   readTransactionsCache,
   recomputeSummary,
+  reorderOccurredAt,
   saveSummaryCache,
   saveTxCache,
   savedMember,
@@ -417,6 +419,95 @@ function withDate(iso: string, value: string) {
   return next.toISOString();
 }
 
+/** Долгое нажатие: палец почти не сдвинулся. Дальше — либо действия, либо перетаскивание. */
+const HOLD_MS = 420;
+const HOLD_SLOP_PX = 10;
+
+/** Куда встанет строка среди остальных: палец ниже середины чужой строки — слот после неё. */
+function dropIndexAt(clientY: number, draggedId: string) {
+  const rows = document.querySelectorAll<HTMLElement>("[data-row-id]");
+  let index = 0;
+  for (const row of rows) {
+    if (row.dataset.dragging === "true" || row.dataset.rowId === draggedId) continue;
+    const rect = row.getBoundingClientRect();
+    if (rect.height === 0) continue;
+    if (clientY > rect.top + rect.height / 2) index += 1;
+    else break;
+  }
+  return index;
+}
+
+type RowDrag = {
+  id: string;
+  /** Слот среди остальных строк, свежие сверху. Совпадает с исходным — порядок не менялся. */
+  index: number;
+  originIndex: number;
+  height: number;
+  left: number;
+  width: number;
+  grabOffset: number;
+  grabX: number;
+};
+
+function TxRowBody({
+  tx,
+  onEdit,
+  onRemove,
+}: {
+  tx: Transaction;
+  onEdit: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <>
+      {/* w-0: иначе неразрывный текст строки задаёт min-content всей странице */}
+      <div className="w-0 min-w-0 flex-1">
+        <p className="truncate text-sm leading-tight font-medium">
+          {TYPE_LABELS[tx.type]}
+          {txPartiesLabel(tx) && (
+            <span className="text-muted-foreground font-normal">
+              {` · ${txPartiesLabel(tx)}`}
+            </span>
+          )}
+        </p>
+        <p className="text-muted-foreground mt-1 truncate text-xs leading-tight">
+          {[noteWithoutMonth(tx.note, tx.occurredAt), formatDayMonth(tx.occurredAt)]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+      </div>
+      <div className="row-swap shrink-0">
+        <span
+          className={`row-amount text-sm font-semibold tabular-nums ${amountTone(tx.type)}`}
+        >
+          <TextMorph as="span" locale="ru" duration={200}>
+            {`${amountPrefix(tx.type)}${formatMoney(tx.amountCents)}`}
+          </TextMorph>
+        </span>
+        <div className="row-actions flex items-center gap-0.5">
+          <Button
+            variant="ghost"
+            size="xs"
+            data-cuelume-press={SFX.secondary}
+            onClick={onEdit}
+          >
+            Изменить
+          </Button>
+          <Button
+            variant="ghost"
+            size="xs"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            data-cuelume-press={SFX.secondary}
+            onClick={onRemove}
+          >
+            Удалить
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function FinaApp() {
   const [loggedIn, setLoggedIn] = useState(false);
   /** С сервера берём только неизменяемую часть: кто участники и как зовут кабинет. */
@@ -479,7 +570,17 @@ export function FinaApp() {
   /** Строка, у которой открыты действия: на тапскрине — по долгому нажатию. */
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [pressingId, setPressingId] = useState<string | null>(null);
-  const longPress = useRef<{ timer: number; x: number; y: number } | null>(null);
+  /** Поднятая строка. Пока палец не отпущен в другом слоте, сервер не трогаем. */
+  const [drag, setDrag] = useState<RowDrag | null>(null);
+  const longPress = useRef<{ timer: number; pointerId: number } | null>(null);
+  const dragRef = useRef<(RowDrag & { pointerId: number; y: number }) | null>(null);
+  const liftRef = useRef<HTMLDivElement | null>(null);
+  const transactionsRef = useRef(transactions);
+  transactionsRef.current = transactions;
+  /** Слушатели жеста живут на window: строка уезжает в портал и теряет capture. */
+  const gestureCleanup = useRef<(() => void) | null>(null);
+  /** Отпускание после перетаскивания не должно кликнуть то, что оказалось под пальцем. */
+  const suppressClick = useRef(false);
 
   // Появление заново на каждом экране. Сброс прямо в рендере, иначе Safari
   // успевает нарисовать кабинет уже в конечном состоянии и анимацию пропускает.
@@ -674,35 +775,246 @@ export function FinaApp() {
   }
 
   /**
-   * Долгое нажатие на строку открывает её действия — это тапскринный аналог
-   * наведения мышью. Уводом пальца жест отменяется, чтобы не мешать скроллу.
+   * Один жест на указателе — и палец, и мышь.
+   * Удержал и отпустил почти на месте: кнопки Изменить / Удалить.
+   * Удержал и повёл: строка едет за пальцем, кнопки не открываются.
+   * Сдвиг до порога — это скролл, жест забываем.
+   * Отмена (Esc, потеря указателя) возвращает порядок без сети.
    */
-  function cancelLongPress() {
+  function endGesture() {
+    gestureCleanup.current?.();
+    gestureCleanup.current = null;
     if (longPress.current) {
       window.clearTimeout(longPress.current.timer);
       longPress.current = null;
     }
+    dragRef.current = null;
+    setDrag(null);
     setPressingId(null);
+    document.documentElement.classList.remove("tx-dragging");
   }
 
   function onRowPointerDown(e: React.PointerEvent, tx: Transaction) {
-    if (e.pointerType === "mouse" || tx.pending) return;
-    cancelLongPress();
+    if (tx.pending || editing || dragRef.current) return;
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest("button, a, input, select, textarea")) return;
+
+    endGesture();
+    const row = e.currentTarget as HTMLElement;
+    const pointerId = e.pointerId;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let armed = false;
+    let mode: "press" | "drag" = "press";
     setPressingId(tx.id);
-    const timer = window.setTimeout(() => {
-      longPress.current = null;
+
+    const blockTouch = (ev: TouchEvent) => {
+      // Слушатель повешен сразу в pointerdown, иначе iOS уже не даст отменить скролл.
+      if (armed) ev.preventDefault();
+    };
+    const blockWheel = (ev: WheelEvent) => {
+      if (mode === "drag") ev.preventDefault();
+    };
+
+    let frame = 0;
+    let alive = true;
+    const tickScroll = () => {
+      if (!alive) return;
+      const session = dragRef.current;
+      frame = window.requestAnimationFrame(tickScroll);
+      if (!session || mode !== "drag") return;
+      const edge = 72;
+      const view = window.innerHeight;
+      let speed = 0;
+      if (session.y < edge) speed = -((edge - session.y) / edge) * 14;
+      else if (session.y > view - edge) {
+        speed = ((session.y - (view - edge)) / edge) * 14;
+      }
+      if (!speed) return;
+      window.scrollBy(0, speed);
+      const next = dropIndexAt(session.y, session.id);
+      if (next !== session.index) {
+        session.index = next;
+        setDrag((prev) => (prev ? { ...prev, index: next } : prev));
+      }
+    };
+
+    const startDrag = (ev: PointerEvent) => {
+      const rect = row.getBoundingClientRect();
+      const list = transactionsRef.current;
+      const originIndex = list.findIndex((t) => t.id === tx.id);
+      if (originIndex < 0) return;
+      mode = "drag";
+      const session = {
+        id: tx.id,
+        pointerId,
+        index: dropIndexAt(ev.clientY, tx.id),
+        originIndex,
+        height: rect.height || 48,
+        left: rect.left,
+        width: rect.width,
+        grabOffset: ev.clientY - rect.top,
+        grabX: ev.clientX - rect.left,
+        y: ev.clientY,
+      };
+      dragRef.current = session;
       setPressingId(null);
-      setRevealedId(tx.id);
+      setRevealedId(null);
+      setDrag({
+        id: session.id,
+        index: session.index,
+        originIndex: session.originIndex,
+        height: session.height,
+        left: session.left,
+        width: session.width,
+        grabOffset: session.grabOffset,
+        grabX: session.grabX,
+      });
+      document.documentElement.classList.add("tx-dragging");
+      frame = window.requestAnimationFrame(tickScroll);
+    };
+
+    const moveLift = (ev: PointerEvent) => {
+      const session = dragRef.current;
+      if (!session) return;
+      session.y = ev.clientY;
+      const lift = liftRef.current;
+      if (lift) lift.style.top = `${ev.clientY - session.grabOffset}px`;
+      const next = dropIndexAt(ev.clientY, session.id);
+      if (next !== session.index) {
+        session.index = next;
+        setDrag((prev) => (prev ? { ...prev, index: next } : prev));
+      }
+    };
+
+    const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      if (mode === "drag") {
+        moveLift(ev);
+        return;
+      }
+      const dist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
+      if (!armed) {
+        if (dist > HOLD_SLOP_PX) endGesture();
+        return;
+      }
+      if (dist > HOLD_SLOP_PX) startDrag(ev);
+    };
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      if (mode === "drag") {
+        suppressClick.current = true;
+        void commitReorder();
+        return;
+      }
+      const id = armed ? tx.id : null;
+      endGesture();
+      if (id) setRevealedId(id);
+    };
+    const onCancel = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      // Палец потерян или жест перехватил браузер — порядок как был, без записи.
+      if (mode === "drag") suppressClick.current = true;
+      endGesture();
+    };
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key !== "Escape") return;
+      ev.preventDefault();
+      endGesture();
+    };
+    const onBlur = () => {
+      if (mode === "drag") suppressClick.current = true;
+      endGesture();
+    };
+
+    const timer = window.setTimeout(() => {
+      if (longPress.current?.pointerId !== pointerId) return;
+      armed = true;
       navigator.vibrate?.(8);
       sfx("nav");
-    }, 420);
-    longPress.current = { timer, x: e.clientX, y: e.clientY };
+    }, HOLD_MS);
+    longPress.current = { timer, pointerId };
+
+    document.addEventListener("touchmove", blockTouch, { passive: false });
+    document.addEventListener("wheel", blockWheel, { passive: false });
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("blur", onBlur);
+    gestureCleanup.current = () => {
+      alive = false;
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener("touchmove", blockTouch);
+      document.removeEventListener("wheel", blockWheel);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("blur", onBlur);
+    };
   }
 
-  function onRowPointerMove(e: React.PointerEvent) {
-    const press = longPress.current;
-    if (!press) return;
-    if (Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) cancelLongPress();
+  useEffect(() => {
+    return () => {
+      gestureCleanup.current?.();
+      gestureCleanup.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const onClick = (ev: globalThis.MouseEvent) => {
+      if (!suppressClick.current) return;
+      suppressClick.current = false;
+      ev.preventDefault();
+      ev.stopPropagation();
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, []);
+
+  /** Отпустили в новом месте: дата встаёт между соседями, остальное не трогаем. */
+  async function commitReorder() {
+    const session = dragRef.current;
+    if (!session || session.index === session.originIndex) {
+      endGesture();
+      return;
+    }
+    const list = transactionsRef.current;
+    const previous = list.find((t) => t.id === session.id);
+    endGesture();
+    if (!previous || previous.pending) return;
+    const others = list.filter((t) => t.id !== session.id);
+    const occurredAt = reorderOccurredAt(
+      others.map((t) => t.occurredAt),
+      session.index,
+    );
+    if (occurredAt === previous.occurredAt) return;
+    const id = session.id;
+
+    setTransactions((prev) =>
+      sortTransactions(
+        prev.map((t) => (t.id === id ? { ...t, occurredAt, pending: true } : t)),
+      ),
+    );
+    setRevealedId(null);
+    setError(null);
+    sfx("success");
+
+    try {
+      const res = await enqueue(() => updateTransaction(id, { occurredAt }));
+      noteWrite(res.rev);
+      setSummaryBase(res.summary);
+      setTransactions((prev) =>
+        sortTransactions(prev.map((t) => (t.id === id ? res.transaction : t))),
+      );
+    } catch (err) {
+      setTransactions((prev) =>
+        sortTransactions(prev.map((t) => (t.id === id ? previous : t))),
+      );
+      flashError(err instanceof Error ? err.message : "Не удалось сохранить");
+    }
   }
 
   /** Открытые действия закрываются касанием мимо строки, скроллом или Esc. */
@@ -943,7 +1255,26 @@ export function FinaApp() {
     sfx("nav");
   }
 
-  const months = useMemo(() => groupByMonth(transactions), [transactions]);
+  /**
+   * Пока строку тащат, в списке она уже стоит в слоте под пальцем — но дата
+   * черновая, на сервер уедет только если палец отпустить в другом месте.
+   * Тот же слот, что был: occurredAt не трогаем, щель остаётся на своём месте.
+   */
+  const ordered = useMemo(() => {
+    if (!drag || drag.index === drag.originIndex) return transactions;
+    const current = transactions.find((t) => t.id === drag.id);
+    if (!current) return transactions;
+    const others = transactions.filter((t) => t.id !== drag.id);
+    const occurredAt = reorderOccurredAt(
+      others.map((t) => t.occurredAt),
+      drag.index,
+    );
+    return sortTransactions(
+      transactions.map((t) => (t.id === drag.id ? { ...t, occurredAt } : t)),
+    );
+  }, [transactions, drag]);
+  const months = useMemo(() => groupByMonth(ordered), [ordered]);
+  const lifted = drag ? (ordered.find((t) => t.id === drag.id) ?? null) : null;
   const mom = useMemo(() => monthOverMonth(transactions), [transactions]);
 
   if (!loggedIn) {
@@ -1172,7 +1503,14 @@ export function FinaApp() {
                   </div>
 
                   {month.items.map((tx) =>
-                  editing?.id === tx.id ? (
+                  drag?.id === tx.id ? (
+                    <div
+                      key={tx.id}
+                      className="tx-gap"
+                      style={{ height: drag.height }}
+                      aria-hidden
+                    />
+                  ) : editing?.id === tx.id ? (
                     <form
                       key={tx.id}
                       className="bg-muted/30 my-1 grid gap-3 rounded-xl border p-3"
@@ -1329,58 +1667,13 @@ export function FinaApp() {
                       data-pending={tx.pending ? "true" : "false"}
                       className="tx-row stagger-item -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2"
                       onPointerDown={(e) => onRowPointerDown(e, tx)}
-                      onPointerMove={onRowPointerMove}
-                      onPointerUp={cancelLongPress}
-                      onPointerCancel={cancelLongPress}
-                      onPointerLeave={cancelLongPress}
+                      onContextMenu={(e) => e.preventDefault()}
                     >
-                      {/* w-0: иначе неразрывный текст строки задаёт min-content всей странице */}
-                      <div className="w-0 min-w-0 flex-1">
-                        <p className="truncate text-sm leading-tight font-medium">
-                          {TYPE_LABELS[tx.type]}
-                          {txPartiesLabel(tx) && (
-                            <span className="text-muted-foreground font-normal">
-                              {` · ${txPartiesLabel(tx)}`}
-                            </span>
-                          )}
-                        </p>
-                        <p className="text-muted-foreground mt-1 truncate text-xs leading-tight">
-                          {[
-                            noteWithoutMonth(tx.note, tx.occurredAt),
-                            formatDayMonth(tx.occurredAt),
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </p>
-                      </div>
-                      <div className="row-swap shrink-0">
-                        <span
-                          className={`row-amount text-sm font-semibold tabular-nums ${amountTone(tx.type)}`}
-                        >
-                          <TextMorph as="span" locale="ru" duration={200}>
-                            {`${amountPrefix(tx.type)}${formatMoney(tx.amountCents)}`}
-                          </TextMorph>
-                        </span>
-                        <div className="row-actions flex items-center gap-0.5">
-                          <Button
-                            variant="ghost"
-                            size="xs"
-                            data-cuelume-press={SFX.secondary}
-                            onClick={() => startEdit(tx)}
-                          >
-                            Изменить
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="xs"
-                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            data-cuelume-press={SFX.secondary}
-                            onClick={() => askRemove(tx)}
-                          >
-                            Удалить
-                          </Button>
-                        </div>
-                      </div>
+                      <TxRowBody
+                        tx={tx}
+                        onEdit={() => startEdit(tx)}
+                        onRemove={() => askRemove(tx)}
+                      />
                     </div>
                   ),
                 )}
@@ -1416,6 +1709,7 @@ export function FinaApp() {
             variant="ghost"
             data-cuelume-press={SFX.logout}
             onClick={() => {
+              endGesture();
               logout();
               setLoggedIn(false);
               setSummaryBase(null);
@@ -1433,6 +1727,32 @@ export function FinaApp() {
           </Button>
         </div>
       </div>
+
+      {lifted && drag
+        ? createPortal(
+            <div
+              ref={liftRef}
+              data-row-id={lifted.id}
+              data-dragging="true"
+              className="tx-row flex items-center justify-between gap-3 rounded-lg px-2 py-2"
+              style={{
+                top: dragRef.current
+                  ? dragRef.current.y - drag.grabOffset
+                  : 0,
+                left: drag.left,
+                width: drag.width,
+                transformOrigin: `${drag.grabX}px ${drag.grabOffset}px`,
+              }}
+            >
+              <TxRowBody
+                tx={lifted}
+                onEdit={() => startEdit(lifted)}
+                onRemove={() => askRemove(lifted)}
+              />
+            </div>,
+            document.body,
+          )
+        : null}
 
       <AlertDialog
         open={pendingDelete !== null}

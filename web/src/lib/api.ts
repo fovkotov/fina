@@ -48,6 +48,91 @@ export function sortTransactions(list: Transaction[]) {
   );
 }
 
+/** Насколько отодвинуть строку, если она встаёт выше самой свежей или ниже самой старой. */
+const REORDER_EDGE_MS = 60_000;
+
+/**
+ * Новая occurredAt, чтобы строка осталась в слоте index после sortTransactions.
+ * Соседи — даты остальных операций, свежие сверху, без перетаскиваемой.
+ * 0 — новее верхней, length — старше нижней, иначе строго между двумя соседними.
+ * Отдельного поля порядка нет: место в списке и есть эта метка, в том числе чужой месяц.
+ */
+export function reorderOccurredAt(
+  neighborIsos: readonly string[],
+  index: number,
+  now = Date.now(),
+): string {
+  const times = neighborIsos.map((iso) => new Date(iso).getTime());
+  const taken = new Set(times.filter((t) => Number.isFinite(t)));
+  const slot = Math.max(0, Math.min(index, times.length));
+
+  let ms: number;
+  if (times.length === 0 || !Number.isFinite(times[0])) {
+    ms = now;
+  } else if (slot === 0) {
+    ms = newerThan(times[0], taken, now);
+  } else if (slot === times.length) {
+    ms = olderThan(times[times.length - 1], taken);
+  } else {
+    ms = betweenNeighbors(times[slot - 1], times[slot], taken);
+  }
+  if (!Number.isFinite(ms)) ms = now;
+  return new Date(ms).toISOString();
+}
+
+/** Чуть новее верхней. Минута в будущее не уезжает: если сосед уже «сейчас», хватает 1 мс. */
+function newerThan(top: number, taken: Set<number>, now: number) {
+  let ms = top + REORDER_EDGE_MS;
+  if (ms > now) ms = now > top ? now : top + 1;
+  if (ms <= top) ms = top + 1;
+  if (!taken.has(ms)) return ms;
+  for (let t = ms; t > top; t -= 1) {
+    if (!taken.has(t)) return t;
+  }
+  let t = top + 1;
+  while (taken.has(t)) t += 1;
+  return t;
+}
+
+function olderThan(bottom: number, taken: Set<number>) {
+  let ms = bottom - REORDER_EDGE_MS;
+  if (ms >= bottom) ms = bottom - 1;
+  while (taken.has(ms)) ms -= 1;
+  return ms;
+}
+
+/** Середина интервала. Если она занята или не строго между — сдвиг на 1 мс внутри зазора. */
+function betweenNeighbors(newer: number, older: number, taken: Set<number>) {
+  if (Number.isFinite(newer) && Number.isFinite(older) && newer > older) {
+    let ms = Math.round((newer + older) / 2);
+    if (ms <= older) ms = older + 1;
+    if (ms >= newer) ms = newer - 1;
+    const free = nearestFreeMs(ms, older, newer, taken);
+    if (free != null) return free;
+  }
+  // Разрыв в 0–1 мс: целой метки строго между нет. Берём свободную сразу под верхней.
+  let fallback = Number.isFinite(newer) ? newer - 1 : older - 1;
+  while (taken.has(fallback)) fallback -= 1;
+  return fallback;
+}
+
+function nearestFreeMs(
+  start: number,
+  older: number,
+  newer: number,
+  taken: Set<number>,
+) {
+  const span = newer - older;
+  for (let step = 0; step < span; step += 1) {
+    const up = start + step;
+    if (up > older && up < newer && !taken.has(up)) return up;
+    if (step === 0) continue;
+    const down = start - step;
+    if (down > older && down < newer && !taken.has(down)) return down;
+  }
+  return null;
+}
+
 /**
  * Повтор серверного getSummary: пока ответ едет, цифры считает клиент по тому же
  * правилу. Любое расхождение формул сразу увидят как прыжок суммы после сохранения.

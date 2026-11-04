@@ -374,9 +374,21 @@
 
 /* —— Строка операции: сумма и действия меняются местами —— */
 .tx-row {
+  touch-action: pan-y;
   transition:
     background-color 160ms ease,
-    opacity 200ms var(--ease-out);
+    opacity 200ms var(--ease-out),
+    scale 140ms var(--ease-out);
+}
+
+/* Пока строку тащат, палец не скроллит страницу. scrollBy у края при этом работает. */
+html.tx-dragging,
+html.tx-dragging body {
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  cursor: grabbing;
+  user-select: none;
 }
 
 /* Операция уже посчитана и на экране, но ещё едет на сервер: правки подождут. */
@@ -400,6 +412,38 @@
 .tx-row[data-pressing="true"],
 .tx-row[data-revealed="true"] {
   background-color: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+
+/* Нажатие чуть утапливает строку, перетаскивание поднимает: палец и карточка вместе. */
+.tx-row[data-pressing="true"] {
+  scale: 0.985;
+  user-select: none;
+}
+
+.tx-row[data-dragging="true"] {
+  position: fixed;
+  z-index: 40;
+  margin: 0;
+  pointer-events: none;
+  touch-action: none;
+  background-color: var(--background);
+  scale: 1.025;
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--foreground) 6%, transparent),
+    0 14px 32px color-mix(in srgb, var(--foreground) 16%, transparent);
+  /* top не анимируем: строка должна сидеть на пальце без задержки. */
+  transition:
+    scale 160ms var(--ease-out),
+    box-shadow 160ms var(--ease-out);
+  will-change: top;
+}
+
+/* Щель там, куда строка встанет, если отпустить палец. */
+.tx-gap {
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--muted) 78%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--foreground) 8%, transparent);
+  pointer-events: none;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -527,6 +571,8 @@
   .content-ready,
   .row-amount,
   .row-actions,
+  .tx-row[data-pressing="true"],
+  .tx-row[data-dragging="true"],
   .dialog-backdrop,
   .dialog-popup {
     animation: none !important;
@@ -550,6 +596,11 @@
   .dialog-popup[data-ending-style] {
     scale: 1;
     translate: -50% -50%;
+  }
+
+  .tx-row[data-pressing="true"],
+  .tx-row[data-dragging="true"] {
+    scale: 1;
   }
 
   @media (hover: hover) and (pointer: fine) {
