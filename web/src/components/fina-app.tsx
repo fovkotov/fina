@@ -458,6 +458,7 @@ function TxRowBody({
   onEdit: () => void;
   onRemove: () => void;
 }) {
+  const note = noteWithoutMonth(tx.note, tx.occurredAt);
   return (
     <>
       {/* w-0: иначе неразрывный текст строки задаёт min-content всей странице */}
@@ -470,10 +471,16 @@ function TxRowBody({
             </span>
           )}
         </p>
-        <p className="text-muted-foreground mt-1 truncate text-xs leading-tight">
-          {[noteWithoutMonth(tx.note, tx.occurredAt), formatDayMonth(tx.occurredAt)]
-            .filter(Boolean)
-            .join(" · ")}
+        <p className="text-muted-foreground mt-1 flex min-w-0 text-xs leading-tight">
+          {note ? (
+            <>
+              <span className="min-w-0 truncate">{note}</span>
+              <span className="shrink-0">{" · "}</span>
+            </>
+          ) : null}
+          <span className="shrink-0 tabular-nums">
+            {formatDayMonth(tx.occurredAt)}
+          </span>
         </p>
       </div>
       <div className="row-swap shrink-0">

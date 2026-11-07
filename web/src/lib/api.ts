@@ -629,11 +629,13 @@ export function formatDate(iso: string) {
   });
 }
 
-/** Для списка операций: год там задают заголовки, в строке он лишний. */
+/** Для списка операций: год задают заголовки, рядом с днём — время. */
 export function formatDayMonth(iso: string) {
-  return new Date(iso).toLocaleDateString("ru-RU", {
+  return new Date(iso).toLocaleString("ru-RU", {
     day: "numeric",
     month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
