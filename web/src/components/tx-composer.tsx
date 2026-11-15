@@ -7,7 +7,7 @@ import { TextMorph } from "torph/react";
 import { Button } from "@/components/ui/button";
 import { AVATARS, SIGN_IMAGES } from "@/lib/assets";
 import { SFX } from "@/lib/sounds";
-import { transactionTypeLabel, type Account, type Member } from "@/lib/api";
+import { MONEY_GROUP_SEPARATOR, transactionTypeLabel, type Account, type Member } from "@/lib/api";
 
 export type OpType = "deposit" | "withdrawal";
 
@@ -35,7 +35,7 @@ export function formatAmountInput(value: string) {
     /^0+(?=\d)/,
     "",
   );
-  const whole = wholeRaw.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  const whole = wholeRaw.replace(/\B(?=(\d{3})+(?!\d))/g, MONEY_GROUP_SEPARATOR);
   if (commaAt === -1) return whole;
   const frac = raw
     .slice(commaAt + 1)

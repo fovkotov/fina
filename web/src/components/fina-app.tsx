@@ -14,6 +14,7 @@ import { TextMorph } from "torph/react";
 import { bind } from "cuelume";
 import { Eye, EyeOff } from "lucide-react";
 import {
+  MONEY_GROUP_SEPARATOR,
   TYPE_LABELS,
   applyPending,
   createTransaction,
@@ -46,6 +47,7 @@ import { SFX, sfx } from "@/lib/sounds";
 import {
   TxComposer,
   amountToCents,
+  formatAmountInput,
   type OpType,
   type SpecialType,
 } from "@/components/tx-composer";
@@ -89,12 +91,12 @@ function moneyParts(cents: number) {
 
 function formatRollingMoney(cents: number) {
   return moneyParts(cents)
-    .map((part) => (part.type === "group" ? "\u202F" : part.value))
+    .map((part) => (part.type === "group" ? MONEY_GROUP_SEPARATOR : part.value))
     .join("");
 }
 
 /**
- * Крупная сумма: группы разрядов отдельно, между ними узкий пробел.
+ * Крупная сумма: группы разрядов отдельно, между ними тонкий пробел.
  * Ключи справа, чтобы новый разряд слева не перезапускал анимацию копеек.
  */
 function wideMoneyPieces(cents: number) {
@@ -104,7 +106,7 @@ function wideMoneyPieces(cents: number) {
     if (part.type === "group") {
       if (buf) pieces.push({ gap: false, text: buf });
       buf = "";
-      pieces.push({ gap: true, text: "\u202F" });
+      pieces.push({ gap: true, text: MONEY_GROUP_SEPARATOR });
     } else {
       buf += part.value;
     }
@@ -131,7 +133,7 @@ function RollingMoney({
   cents: number;
   hidden?: boolean;
   sign?: "+" | "−";
-  /** Узкий пробел между сотнями в полтора раза шире. Только у крупной суммы. */
+  /** Крупная сумма анимирует группы разрядов отдельно. */
   wideGroups?: boolean;
 }) {
   if (!hidden && wideGroups) {
@@ -142,7 +144,7 @@ function RollingMoney({
         {pieces.map((piece, i) =>
           piece.gap ? (
             <span key={`gap-${fromEnd - i}`} className="group-gap" aria-hidden="true">
-              {"\u202F"}
+              {piece.text}
             </span>
           ) : (
             <TextMorph key={`num-${fromEnd - i}`} {...moneyMorph}>
@@ -1079,7 +1081,7 @@ export function FinaApp() {
     setEditing({
       id: tx.id,
       type: tx.type,
-      amount: String(tx.amountCents / 100),
+      amount: formatAmountInput(String(tx.amountCents / 100)),
       memberId: tx.memberId ?? "",
       toMemberId:
         tx.toMemberId ?? otherMemberId(summary?.members ?? [], tx.memberId ?? ""),
@@ -1403,7 +1405,7 @@ export function FinaApp() {
                         <Label>Сумма</Label>
                         <Input
                           value={editing.amount}
-                          onChange={(e) => setEditing({ ...editing, amount: e.target.value })}
+                          onChange={(e) => setEditing({ ...editing, amount: formatAmountInput(e.target.value) })}
                           inputMode="decimal"
                           lang="ru"
                           className="tabular-nums"
@@ -1713,7 +1715,7 @@ export function FinaApp() {
                     style={{ animationDelay: `${i * 40}ms` }}
                   >
                     <p className="text-muted-foreground text-xs sm:text-sm">{m.name}</p>
-                    <p className="text-[clamp(1rem,5.3vw,1.75rem)] leading-tight font-semibold tracking-tight tabular-nums">
+                    <p className="text-[clamp(0.9375rem,4.6vw,1.5rem)] leading-tight font-semibold tracking-tight tabular-nums">
                       <RollingMoney cents={m.balanceCents ?? 0} hidden={hideBalances} />
                     </p>
                     <dl className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 text-xs font-medium tabular-nums">
