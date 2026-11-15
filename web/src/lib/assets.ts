@@ -15,3 +15,8 @@ export const CREDIT_IMAGES = {
   particle: `${BASE_PATH}/assets/credit-particle.png`,
   portrait: `${BASE_PATH}/assets/credit-portrait.webp`,
 };
+
+export const ACCOUNT_LOGOS = {
+  rocket: `${BASE_PATH}/assets/account-rocket.svg`,
+  yandex: `${BASE_PATH}/assets/account-yandex.svg`,
+};

@@ -45,7 +45,7 @@ import {
   type Transaction,
   type TransactionType,
 } from "@/lib/api";
-import { CREDIT_IMAGES } from "@/lib/assets";
+import { ACCOUNT_LOGOS, CREDIT_IMAGES } from "@/lib/assets";
 import { SFX, sfx } from "@/lib/sounds";
 import {
   TxComposer,
@@ -1692,67 +1692,60 @@ export function FinaApp() {
               data-mounted={mounted ? "true" : "false"}
               className={`surface-enter grid gap-4 ${summary ? "content-ready" : "content-busy"}`}
             >
-              <div className="grid gap-1.5">
-                <p className="text-muted-foreground text-sm">Всего на всех счетах</p>
-                <div className="font-heading flex items-center gap-2 text-4xl leading-none font-semibold md:gap-3 md:text-5xl tabular-nums">
-                  <span
-                    className="digit-play"
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                <div className="@container min-w-0">
+                  <div className="flex items-center gap-1">
+                    <p className="text-muted-foreground text-sm">Всего на всех счетах</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-muted-foreground hover:text-foreground"
+                      aria-label={hideBalances ? "Показать суммы" : "Скрыть суммы"}
+                      aria-pressed={hideBalances}
+                      data-cuelume-press={SFX.nav}
+                      onClick={toggleHideBalances}
+                    >
+                      {hideBalances ? <EyeOff /> : <Eye />}
+                    </Button>
+                  </div>
+                  <div
+                    className="digit-play font-heading text-[clamp(1.375rem,13cqw,3rem)] leading-none font-semibold whitespace-nowrap tabular-nums"
                     onMouseOver={onTotalDigitOver}
                     onMouseOut={onTotalDigitOut}
                   >
-                    <RollingMoney
-                      cents={overallTotal}
-                      hidden={hideBalances}
-                      wideGroups
-                    />
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="text-muted-foreground hover:text-foreground -mt-0.5"
-                    aria-label={hideBalances ? "Показать суммы" : "Скрыть суммы"}
-                    aria-pressed={hideBalances}
-                    data-cuelume-press={SFX.nav}
-                    onClick={toggleHideBalances}
-                  >
-                    {hideBalances ? <EyeOff /> : <Eye />}
-                  </Button>
+                    <RollingMoney cents={overallTotal} hidden={hideBalances} wideGroups />
+                  </div>
+                  {!hideBalances && <MomDelta cents={overallMom?.totalCents} />}
                 </div>
-                {!hideBalances && <MomDelta cents={overallMom?.totalCents} />}
-              </div>
-              <div
-                role="group"
-                aria-label="Счёт"
-                className="bg-muted relative isolate grid w-fit grid-cols-2 rounded-xl p-1"
-              >
-                <span
-                  aria-hidden="true"
-                  className={`account-indicator pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-lg bg-background shadow-sm ${account === "yandex" ? "translate-x-full" : ""}`}
-                />
-                {ACCOUNTS.map(({ id, label }) => (
-                  <Button
-                    key={id}
-                    type="button"
-                    variant="ghost"
-                    aria-pressed={id === account}
-                    disabled={id === "yandex" && !summaries?.yandex}
-                    className="relative h-[44px] px-5 hover:bg-transparent dark:hover:bg-transparent"
-                    data-cuelume-press={SFX.nav}
-                    onClick={() => {
-                      if (id === account) return;
-                      endGesture();
-                      setRevealedId(null);
-                      setEditing(null);
-                      setOpAmount("");
-                      setOpSpecial(null);
-                      setOpType("deposit");
-                      setAccount(id);
-                    }}
-                  >
-                    {label}
-                  </Button>
-                ))}
+                <div role="group" aria-label="Счёт" className="grid gap-1 min-[380px]:grid-cols-2">
+                  {ACCOUNTS.map(({ id, label }) => (
+                    <Button
+                      key={id}
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={label}
+                      title={label}
+                      aria-pressed={id === account}
+                      disabled={id === "yandex" && !summaries?.yandex}
+                      className="size-[44px] rounded-xl border-transparent opacity-60 aria-pressed:border-ring aria-pressed:opacity-100 hover:opacity-100"
+                      data-cuelume-press={SFX.nav}
+                      onClick={() => {
+                        if (id === account) return;
+                        endGesture();
+                        setRevealedId(null);
+                        setEditing(null);
+                        setOpAmount("");
+                        setOpSpecial(null);
+                        setOpType("deposit");
+                        setAccount(id);
+                      }}
+                    >
+                      <Image src={ACCOUNT_LOGOS[id]} alt="" width={32} height={32} unoptimized />
+                    </Button>
+                  ))}
+                </div>
               </div>
               <div className="mt-2 grid grid-cols-2 gap-4">
                 {(summary?.members ?? []).map((m, i) => (

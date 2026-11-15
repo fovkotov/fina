@@ -601,17 +601,6 @@ html.tx-dragging body {
   }
 }
 
-/* The selection moves independently of the buttons and their hit areas. */
-@media (prefers-reduced-motion: no-preference) {
-  .account-indicator {
-    transition: translate 180ms var(--ease-in-out);
-  }
-
-  [role="group"]:has(> button:focus-visible) > .account-indicator {
-    transition: none;
-  }
-}
-
 .credit-portrait {
   animation: credit-portrait 2200ms ease both;
 }
