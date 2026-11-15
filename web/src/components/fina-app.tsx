@@ -1696,18 +1696,21 @@ export function FinaApp() {
                     style={{ animationDelay: `${i * 40}ms` }}
                   >
                     <p className="text-muted-foreground text-xs sm:text-sm">{m.name}</p>
-                    <dl className="mt-1.5 grid gap-2">
+                    <p className="text-[clamp(0.75rem,4vw,1.25rem)] font-semibold tabular-nums">
+                      <RollingMoney cents={m.balanceCents ?? 0} hidden={hideBalances} />
+                    </p>
+                    <dl className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 text-xs font-medium tabular-nums">
                       {[
                         { label: "Пополнения", cents: m.depositsCents, sign: "+" as const },
                         { label: "Списания", cents: m.withdrawalsCents, sign: "−" as const },
                       ].map(({ label, cents, sign }) => (
                         <div key={label}>
-                          <dt className="text-muted-foreground text-xs">{label}</dt>
-                          <dd className="text-[clamp(0.75rem,4vw,1.25rem)] font-semibold tabular-nums">
+                          <dt className="sr-only">{label}</dt>
+                          <dd className={sign === "+" ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground"}>
                             {cents == null ? "—" : (
                               <RollingMoney
                                 cents={cents}
-                                sign={cents > 0 ? sign : undefined}
+                                sign={sign}
                                 hidden={hideBalances}
                               />
                             )}
