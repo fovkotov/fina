@@ -477,7 +477,7 @@ function TxRowBody({
             тысячи torph-item и лаг скролла на телефоне. Крутим только черновик,
             который только что появился. */}
         <span
-          className={`row-amount text-sm font-semibold tabular-nums ${amountTone(tx.type)}`}
+          className={`row-amount text-sm font-medium tabular-nums ${amountTone(tx.type)}`}
         >
           {tx.pending ? (
             <TextMorph as="span" locale="ru" duration={200}>
