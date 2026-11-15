@@ -77,11 +77,6 @@ const ALL_TYPES = Object.keys(TYPE_LABELS) as TransactionType[];
 const HIDE_BALANCES_KEY = "fina-hide-balances";
 const HIDDEN_MONEY = "••••••";
 
-/**
- * Сумма для пересчёта разрядов. Обычный формат денег кладёт nbsp между группами
- * и перед ₽ — torph режет строку на слова и меняет цифры целиком. Узкий пробел
- * остаётся внутри одного числа, знак рубля стоит рядом и не крутится.
- */
 function moneyParts(cents: number) {
   return new Intl.NumberFormat("ru-RU", {
     minimumFractionDigits: 2,
@@ -96,7 +91,7 @@ function formatRollingMoney(cents: number) {
 }
 
 /**
- * Крупная сумма: группы разрядов отдельно, между ними тонкий пробел.
+ * Крупная сумма: группы разрядов отдельно, между ними неразрывный пробел.
  * Ключи справа, чтобы новый разряд слева не перезапускал анимацию копеек.
  */
 function wideMoneyPieces(cents: number) {

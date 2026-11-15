@@ -632,7 +632,7 @@ export function fetchShare() {
   }>("/api/share");
 }
 
-export const MONEY_GROUP_SEPARATOR = "\u202F";
+export const MONEY_GROUP_SEPARATOR = "\u00A0";
 
 export function formatMoney(cents: number) {
   return new Intl.NumberFormat("ru-RU", {
