@@ -1743,7 +1743,7 @@ export function FinaApp() {
         )}
 
         <div className="grid items-start gap-4 lg:grid-cols-[var(--composer-field)_480px] lg:gap-x-12">
-          <div className="grid gap-6 md:gap-4 lg:sticky lg:top-8 lg:self-start">
+          <div className="grid gap-4 lg:sticky lg:top-8 lg:self-start">
             <section
               data-mounted={mounted ? "true" : "false"}
               className={`surface-enter grid gap-6 md:gap-4 ${summary ? "content-ready" : "content-busy"}`}
@@ -1774,7 +1774,7 @@ export function FinaApp() {
                   </div>
                   {!hideBalances && <MomDelta cents={mom?.totalCents} />}
                 </div>
-                <div role="group" aria-label="Счёт" className="grid grid-cols-2 gap-1">
+                <div role="group" aria-label="Счёт" className="flex items-center gap-0.5">
                   {ACCOUNTS.map(({ id, label }) => (
                     <Button
                       key={id}
@@ -1785,7 +1785,7 @@ export function FinaApp() {
                       title={label}
                       aria-pressed={id === account}
                       disabled={id === "yandex" && !summaries?.yandex}
-                      className="size-[44px] rounded-xl border-transparent opacity-60 aria-pressed:border-ring aria-pressed:opacity-100 hover:opacity-100"
+                      className="h-[78px] w-[51.071px] rounded-[14.857px] p-0 aria-pressed:border-foreground/12"
                       data-cuelume-press={SFX.nav}
                       onClick={() => {
                         if (id === account) return;
@@ -1799,7 +1799,30 @@ export function FinaApp() {
                         setAccount(id);
                       }}
                     >
-                      <Image src={ACCOUNT_LOGOS[id]} alt="" width={32} height={32} unoptimized />
+                      {id === "rocket" ? (
+                        <span
+                          className="relative h-[70.571px] w-[43.643px] shrink-0 overflow-hidden rounded-[11.143px]"
+                          style={{ backgroundImage: "linear-gradient(180deg, #f4601c 0%, #ea9ba3 38.997%, #e7acc9 50%, #dae8f7 100%)" }}
+                        >
+                          <Image
+                            src={ACCOUNT_LOGOS.rocket}
+                            alt=""
+                            width={52}
+                            height={7.932}
+                            unoptimized
+                            className="absolute top-[36.2px] left-[35.4px] h-[7.932px] w-[52px] max-w-none -translate-1/2 -rotate-90"
+                          />
+                        </span>
+                      ) : (
+                        <Image
+                          src={ACCOUNT_LOGOS.yandex}
+                          alt=""
+                          width={43.643}
+                          height={70.571}
+                          unoptimized
+                          className="h-[70.571px] w-[43.643px] shrink-0"
+                        />
+                      )}
                     </Button>
                   ))}
                 </div>
@@ -1815,7 +1838,7 @@ export function FinaApp() {
                     <p className="text-[clamp(0.9375rem,4.6vw,1.5rem)] leading-tight font-semibold tracking-tight tabular-nums">
                       <RollingMoney cents={m.balanceCents ?? 0} hidden={hideBalances} />
                     </p>
-                    <dl className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-xs font-medium tabular-nums max-[359px]:grid">
+                    <dl className="mt-1 flex flex-wrap gap-x-1 gap-y-0.5 text-xs font-medium tabular-nums max-[359px]:grid">
                       {[
                         { label: "Пополнения за текущий месяц", cents: monthlyTotalsReady ? (monthlyMemberTotals.get(m.id)?.deposit ?? 0) : undefined, sign: "+" as const },
                         { label: "Списания за текущий месяц", cents: monthlyTotalsReady ? (monthlyMemberTotals.get(m.id)?.withdrawal ?? 0) : undefined, sign: "−" as const },
@@ -1860,7 +1883,7 @@ export function FinaApp() {
 
             {/* Карточек больше нет — блоки делит линия: по 32px воздуха с каждой
                 стороны (сверху 16 из gap колонки плюс mt-4). */}
-            <section className="border-border/70 border-t pt-6 md:mt-4 md:pt-8">
+            <section className="border-border/70 mt-4 border-t pt-8">
               <TxComposer
                 account={account}
                 type={opType}

@@ -17,6 +17,6 @@ export const CREDIT_IMAGES = {
 };
 
 export const ACCOUNT_LOGOS = {
-  rocket: `${BASE_PATH}/assets/account-rocket.svg`,
-  yandex: `${BASE_PATH}/assets/account-yandex.svg`,
+  rocket: `${BASE_PATH}/assets/account-rocket-wordmark.svg`,
+  yandex: `${BASE_PATH}/assets/account-yandex-tall.svg`,
 };

@@ -233,7 +233,7 @@ export function TxComposer({
 
   return (
     <form
-      className="grid w-full max-w-[var(--composer-field)] gap-3 md:gap-[9px]"
+      className="grid w-full max-w-[var(--composer-field)] gap-[9px]"
       noValidate
       onSubmit={(e) => {
         e.preventDefault();
@@ -252,7 +252,7 @@ export function TxComposer({
               special === t ? `${transactionTypeLabel(t, account)}, снять выбор` : undefined
             }
             /* Тот же чип, что у быстрых сумм снизу; выбранный — в акценте. */
-            className={`pressable flex min-h-[44px] items-center justify-center gap-[5px] rounded-[30px] px-[clamp(0.625rem,3.85vw,0.9375rem)] py-[8px] text-[clamp(0.875rem,4.11vw,1rem)] font-medium ${
+            className={`pressable flex min-h-[44px] items-center justify-center gap-[5px] rounded-[30px] px-[15px] py-[8px] text-[16px] font-medium ${
               special === t
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground"
@@ -305,7 +305,7 @@ export function TxComposer({
           >
             <picture
               key={signType}
-              className={`swap-in pointer-events-none shrink-0 ${signType === "deposit" ? "size-[48px] md:size-[84px]" : "size-[42px]"}`}
+              className={`swap-in pointer-events-none shrink-0 ${signType === "deposit" ? "size-[84px]" : "size-[42px]"}`}
             >
               {signType === "deposit" && (
                 <source srcSet={PLUS_STICKER} type="image/webp" media="(prefers-reduced-motion: no-preference)" />
@@ -337,7 +337,7 @@ export function TxComposer({
           enterKeyHint="done"
           aria-label="Сумма"
           // w-0: без явной ширины поле держит интринсик ~20 символов и распирает страницу
-          className="placeholder:text-muted-foreground w-0 min-w-0 flex-1 bg-transparent text-center text-[26px] font-medium tabular-nums outline-none md:text-[22px] md:font-normal md:placeholder:text-foreground/20"
+          className="placeholder:text-foreground/20 w-0 min-w-0 flex-1 bg-transparent text-center text-[22px] tabular-nums outline-none"
         />
 
         {isTransfer ? (
@@ -389,7 +389,7 @@ export function TxComposer({
           <button
             key={value}
             type="button"
-            className="pressable bg-muted text-muted-foreground flex min-h-[44px] min-w-0 flex-1 max-w-[90px] items-center justify-center rounded-[30px] px-2 md:px-[15px] py-[8px] text-[16px] font-medium tabular-nums"
+            className="pressable bg-muted text-muted-foreground flex min-h-[44px] w-[90px] items-center justify-center rounded-[30px] px-[15px] py-[8px] text-[16px] font-medium tabular-nums"
             data-cuelume-press={SFX.nav}
             onClick={() => applyQuick(value)}
           >
