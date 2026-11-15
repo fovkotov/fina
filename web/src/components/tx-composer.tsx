@@ -85,7 +85,6 @@ function MemberAvatar({
       title={member?.name ?? undefined}
       className="pressable grid size-[44px] place-items-center shrink-0 overflow-hidden rounded-full"
       data-cuelume-press={SFX.nav}
-      data-cuelume-release={SFX.release}
       onClick={onClick}
     >
       {avatar ? (
@@ -259,7 +258,6 @@ export function TxComposer({
                 : "bg-muted text-muted-foreground"
             }`}
             data-cuelume-press={SFX.nav}
-            data-cuelume-release={SFX.release}
             onClick={() => onSpecialChange(special === t ? null : t)}
           >
             {transactionTypeLabel(t, account)}
@@ -299,7 +297,6 @@ export function TxComposer({
             /* Без круглой маски: у знака руки и ноги доходят до краёв картинки. */
             className="pressable grid size-[44px] place-items-center shrink-0"
             data-cuelume-press={SFX.nav}
-            data-cuelume-release={SFX.release}
             onClick={() => {
               // у начисления знака нет: первое нажатие возвращает обычную операцию
               if (special) return onSpecialChange(null);
@@ -356,7 +353,6 @@ export function TxComposer({
             title={fromMember?.name ?? undefined}
             className="pressable grid size-[44px] place-items-center shrink-0 overflow-hidden rounded-full"
             data-cuelume-press={SFX.nav}
-            data-cuelume-release={SFX.release}
             onClick={nextMember}
           >
             {avatar ? (
@@ -388,7 +384,6 @@ export function TxComposer({
             type="button"
             className="pressable bg-muted text-muted-foreground flex min-h-[44px] w-[90px] items-center justify-center rounded-[30px] px-[15px] py-[8px] text-[16px] font-medium tabular-nums"
             data-cuelume-press={SFX.nav}
-            data-cuelume-release={SFX.release}
             onClick={() => applyQuick(value)}
           >
             <TextMorph as="span" locale="ru" duration={220}>
@@ -405,7 +400,6 @@ export function TxComposer({
           disabled={disabled}
           /* Кнопка повторяет габариты поля ввода: та же ширина, высота и скругление. */
           className="reveal-up mt-1 h-[74px] w-full rounded-[60px] text-[18px]"
-          data-cuelume-press={SFX.primaryPress}
         >
           {special === "transfer"
             ? "Перевести"

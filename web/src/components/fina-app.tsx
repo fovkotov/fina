@@ -511,8 +511,9 @@ function TxRowBody({
   );
 }
 
-const CREDIT_PARTICLES = Array.from({ length: 16 }, (_, index) => {
-  const angle = (index / 16) * Math.PI * 2;
+const CREDIT_PARTICLE_COUNT = 32;
+const CREDIT_PARTICLES = Array.from({ length: CREDIT_PARTICLE_COUNT }, (_, index) => {
+  const angle = (index / CREDIT_PARTICLE_COUNT) * Math.PI * 2;
   const distance = 12 + (index % 4) * 5;
   const x = Math.cos(angle) * distance;
   const y = Math.sin(angle) * distance;
@@ -1132,7 +1133,6 @@ export function FinaApp() {
       date: dateInputValue(tx.occurredAt),
       occurredAt: tx.occurredAt,
     });
-    sfx("nav");
   }
 
   function cancelEdit() {
@@ -1186,12 +1186,12 @@ export function FinaApp() {
     );
     cancelEdit();
     setError(null);
-    sfx("success");
 
     try {
       const res = await enqueue(() => updateTransaction(id, patch));
       noteWrite(res.rev);
       setSummaryBase(res.summary);
+      sfx("success");
       setTransactions((prev) =>
         sortTransactions(prev.map((t) => (t.id === id ? res.transaction : t))),
       );
@@ -1310,12 +1310,12 @@ export function FinaApp() {
     setOpAmount("");
     // необычный тип — разовый выбор, следующая операция снова обычная
     setOpSpecial(null);
-    sfx(type === "withdrawal" ? "remove" : "success");
 
     try {
       const res = await enqueue(() => createTransaction(body));
       noteWrite(res.rev);
       setSummaryBase(res.summary);
+      sfx(type === "withdrawal" ? "remove" : "success");
       setTransactions((prev) =>
         sortTransactions(prev.map((t) => (t.id === id ? res.transaction : t))),
       );
@@ -1334,7 +1334,6 @@ export function FinaApp() {
       writeFlag(HIDE_BALANCES_KEY, next);
       return next;
     });
-    sfx("nav");
   }
 
   /**
@@ -1538,7 +1537,6 @@ export function FinaApp() {
                         type="submit"
                         size="sm"
                         disabled={loading}
-                        data-cuelume-press={SFX.primaryPress}
                       >
                         Сохранить
                       </Button>
@@ -1657,7 +1655,6 @@ export function FinaApp() {
               <Button
                 type="submit"
                 disabled={loading}
-                data-cuelume-press={SFX.primaryPress}
                 className="w-full"
               >
                 <span className={loading ? "content-busy" : "content-ready"}>

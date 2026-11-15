@@ -1,7 +1,6 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button";
 import { cva, type VariantProps } from "class-variance-authority";
 
-import { SFX } from "@/lib/sounds";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
@@ -50,9 +49,6 @@ function Button({
   return (
     <ButtonPrimitive
       data-slot="button"
-      /* Release-звук по умолчанию для всех кнопок; до {...props}, чтобы
-         конкретная кнопка могла его переопределить или погасить. */
-      data-cuelume-release={SFX.release}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />

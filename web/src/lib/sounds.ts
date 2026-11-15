@@ -7,9 +7,7 @@ import { play, type SoundName } from "cuelume";
 export const SFX = {
   /** Табы, сегменты, переключатели выбора */
   nav: "tick" as const,
-  /** Primary CTA (сохранить / войти) — press */
-  primaryPress: "pulse" as const,
-  /** Primary CTA — release / успех внесения */
+  /** Подтверждённое действие */
   success: "success" as const,
   /** Списание / удаление */
   remove: "droplet" as const,
@@ -21,8 +19,6 @@ export const SFX = {
   error: "error" as const,
   /** Старт загрузки по кнопке */
   loading: "loading" as const,
-  /** Отпускание кнопки — верхняя половина пары к любому press-звуку */
-  release: "release" as const,
 } satisfies Record<string, SoundName>;
 
 export function sfx(name: keyof typeof SFX) {
