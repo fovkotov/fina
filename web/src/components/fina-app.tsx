@@ -610,7 +610,6 @@ export function FinaApp() {
     };
   }, [summaryBase, transactions, txRev, ledgerRev]);
   const summary = account === "rocket" ? summaries : summaries?.yandex;
-  const overallTotal = (summaries?.totalCents ?? 0) + (summaries?.yandex?.totalCents ?? 0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [inviteCode, setInviteCode] = useState("FINA26");
@@ -1378,7 +1377,6 @@ export function FinaApp() {
     return totals;
   }, [accountTransactions, currentMonth]);
   const monthlyTotalsReady = txRev >= 0 && txRev >= ledgerRev;
-  const overallMom = useMemo(() => monthOverMonth(transactions), [transactions]);
   gestureLive.current = { onRowPointerDown, startEdit, askRemove, saveEdit, cancelEdit };
   // Поле суммы живёт в этом же компоненте. Без этой границы каждый символ
   // заново собирает все строки — на телефоне ввод начинает лагать.
@@ -1695,7 +1693,7 @@ export function FinaApp() {
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
                 <div className="@container min-w-0">
                   <div className="flex items-center gap-1">
-                    <p className="text-muted-foreground text-sm">Всего на всех счетах</p>
+                    <p className="text-muted-foreground text-sm">Всего на счёте</p>
                     <Button
                       type="button"
                       variant="ghost"
@@ -1714,9 +1712,9 @@ export function FinaApp() {
                     onMouseOver={onTotalDigitOver}
                     onMouseOut={onTotalDigitOut}
                   >
-                    <RollingMoney cents={overallTotal} hidden={hideBalances} wideGroups />
+                    <RollingMoney cents={summary?.totalCents ?? 0} hidden={hideBalances} wideGroups />
                   </div>
-                  {!hideBalances && <MomDelta cents={overallMom?.totalCents} />}
+                  {!hideBalances && <MomDelta cents={mom?.totalCents} />}
                 </div>
                 <div role="group" aria-label="Счёт" className="grid gap-1 min-[380px]:grid-cols-2">
                   {ACCOUNTS.map(({ id, label }) => (
