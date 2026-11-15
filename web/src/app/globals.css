@@ -308,6 +308,18 @@
 .stagger-item:nth-child(7) { animation-delay: 240ms; }
 .stagger-item:nth-child(n + 8) { animation-delay: 280ms; }
 
+@media (min-width: 64rem) {
+  .ledger[data-appear] .stagger-item:not([data-entry-visible]) {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+
+  .ledger[data-appear="true"] .stagger-item[data-entry-visible] {
+    animation-delay: var(--ledger-entry-delay);
+  }
+}
+
 @keyframes stagger-in {
   from {
     opacity: 0;

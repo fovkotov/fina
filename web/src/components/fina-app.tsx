@@ -3,6 +3,7 @@
 import {
   startTransition,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -1358,6 +1359,30 @@ export function FinaApp() {
     );
   }, [accountTransactions, drag]);
   const months = useMemo(() => groupByMonth(ordered), [ordered]);
+  const ledgerRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const list = ledgerRef.current;
+    if (
+      !list ||
+      !months.length ||
+      list.dataset.entryMeasured ||
+      !window.matchMedia("(min-width: 64rem)").matches
+    ) return;
+
+    const visible: HTMLElement[] = [];
+    for (const row of list.querySelectorAll<HTMLElement>(".tx-row[data-row-id]")) {
+      const bounds = row.getBoundingClientRect();
+      if (bounds.top >= window.innerHeight) break;
+      if (bounds.bottom > 0) visible.push(row);
+    }
+
+    list.dataset.entryMeasured = "true";
+    visible.forEach((row, index) => {
+      row.dataset.entryVisible = "true";
+      row.style.setProperty("--ledger-entry-delay", `${Math.min(index, 7) * 40}ms`);
+    });
+  }, [loggedIn, months]);
   const lifted = drag ? (ordered.find((t) => t.id === drag.id) ?? null) : null;
   const mom = useMemo(() => monthOverMonth(accountTransactions), [accountTransactions]);
   const currentMonth = calendarMonthKey();
@@ -1383,7 +1408,7 @@ export function FinaApp() {
   const ledger = useMemo(() => {
     const live = gestureLive;
     return (
-      <div className="mt-8 lg:mt-0" data-appear={mounted ? "true" : "false"}>
+      <div ref={ledgerRef} className="ledger mt-8 lg:mt-0" data-appear={mounted ? "true" : "false"}>
         {months.map((month, i) => (
           /* Воздух после месяца — in-flow after:h-10, не pb: padding
              не держит sticky. Плашка живёт, пока не приедет следующая. */
