@@ -1743,20 +1743,20 @@ export function FinaApp() {
         )}
 
         <div className="grid items-start gap-4 lg:grid-cols-[var(--composer-field)_480px] lg:gap-x-12">
-          <div className="grid gap-4 lg:sticky lg:top-8 lg:self-start">
+          <div className="grid gap-6 md:gap-4 lg:sticky lg:top-8 lg:self-start">
             <section
               data-mounted={mounted ? "true" : "false"}
-              className={`surface-enter grid gap-4 ${summary ? "content-ready" : "content-busy"}`}
+              className={`surface-enter grid gap-6 md:gap-4 ${summary ? "content-ready" : "content-busy"}`}
             >
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-                <div className="@container min-w-0">
+                <div className="@container grid min-w-0 gap-1.5 md:block">
                   <div className="flex items-center gap-1">
                     <p className="text-muted-foreground text-sm">Всего на счёте</p>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      className="text-muted-foreground hover:text-foreground"
+                      className="text-muted-foreground hover:text-foreground relative size-5 min-h-0 min-w-0 after:absolute after:inset-[-12px] md:size-7"
                       aria-label={hideBalances ? "Показать суммы" : "Скрыть суммы"}
                       aria-pressed={hideBalances}
                       data-cuelume-press={SFX.nav}
@@ -1766,7 +1766,7 @@ export function FinaApp() {
                     </Button>
                   </div>
                   <div
-                    className="digit-play font-heading text-[clamp(1.375rem,13cqw,3rem)] leading-none font-semibold whitespace-nowrap tabular-nums"
+                    className="digit-play font-heading text-[clamp(1.375rem,13.25cqw,3rem)] leading-none font-semibold whitespace-nowrap tabular-nums"
                     onMouseOver={onTotalDigitOver}
                     onMouseOut={onTotalDigitOut}
                   >
@@ -1774,7 +1774,7 @@ export function FinaApp() {
                   </div>
                   {!hideBalances && <MomDelta cents={mom?.totalCents} />}
                 </div>
-                <div role="group" aria-label="Счёт" className="grid gap-1 min-[380px]:grid-cols-2">
+                <div role="group" aria-label="Счёт" className="grid grid-cols-2 gap-1">
                   {ACCOUNTS.map(({ id, label }) => (
                     <Button
                       key={id}
@@ -1804,7 +1804,7 @@ export function FinaApp() {
                   ))}
                 </div>
               </div>
-              <div className="mt-2 grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 md:mt-2">
                 {(summary?.members ?? []).map((m, i) => (
                   <div
                     key={m.id}
@@ -1815,7 +1815,7 @@ export function FinaApp() {
                     <p className="text-[clamp(0.9375rem,4.6vw,1.5rem)] leading-tight font-semibold tracking-tight tabular-nums">
                       <RollingMoney cents={m.balanceCents ?? 0} hidden={hideBalances} />
                     </p>
-                    <dl className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 text-xs font-medium tabular-nums">
+                    <dl className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-xs font-medium tabular-nums max-[359px]:grid">
                       {[
                         { label: "Пополнения за текущий месяц", cents: monthlyTotalsReady ? (monthlyMemberTotals.get(m.id)?.deposit ?? 0) : undefined, sign: "+" as const },
                         { label: "Списания за текущий месяц", cents: monthlyTotalsReady ? (monthlyMemberTotals.get(m.id)?.withdrawal ?? 0) : undefined, sign: "−" as const },
@@ -1860,7 +1860,7 @@ export function FinaApp() {
 
             {/* Карточек больше нет — блоки делит линия: по 32px воздуха с каждой
                 стороны (сверху 16 из gap колонки плюс mt-4). */}
-            <section className="border-border/70 mt-4 border-t pt-8">
+            <section className="border-border/70 border-t pt-6 md:mt-4 md:pt-8">
               <TxComposer
                 account={account}
                 type={opType}
