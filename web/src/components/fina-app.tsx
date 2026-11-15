@@ -321,8 +321,6 @@ function calendarMonthKey(now = new Date()) {
  */
 function monthOverMonth(list: Transaction[], now = new Date()) {
   const currentKey = calendarMonthKey(now);
-  const hasPreviousMonth = list.some((tx) => monthKeyOf(tx.occurredAt) < currentKey);
-  if (!hasPreviousMonth) return null;
 
   let accrualsCents = 0;
   let totalCents = 0;
@@ -1772,9 +1770,9 @@ export function FinaApp() {
                   >
                     <RollingMoney cents={summary?.totalCents ?? 0} hidden={hideBalances} wideGroups />
                   </div>
-                  {!hideBalances && <MomDelta cents={mom?.totalCents} />}
+                  {!hideBalances && <MomDelta cents={mom.totalCents} />}
                 </div>
-                <div role="group" aria-label="Счёт" className="flex items-center gap-0.5">
+                <div role="group" aria-label="Счёт" className="flex items-center gap-0.5 self-start">
                   {ACCOUNTS.map(({ id, label }) => (
                     <Button
                       key={id}
@@ -1876,7 +1874,7 @@ export function FinaApp() {
                       hidden={hideBalances}
                     />
                   </p>
-                  {!hideBalances && <MomDelta cents={mom?.accrualsCents} />}
+                  {!hideBalances && <MomDelta cents={mom.accrualsCents} />}
                 </div>
               </div>
             </section>
