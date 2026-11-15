@@ -29,18 +29,6 @@ function askForTilt() {
 function draw(ctx: CanvasRenderingContext2D, game: Jump, avatar?: HTMLImageElement) {
   ctx.fillStyle = "#151613";
   ctx.fillRect(0, 0, JUMP_WIDTH, JUMP_HEIGHT);
-  ctx.strokeStyle = "#2a2c23";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let x = 0; x < JUMP_WIDTH; x += 24) {
-    ctx.moveTo(x + 0.5, 0);
-    ctx.lineTo(x + 0.5, JUMP_HEIGHT);
-  }
-  for (let y = game.camera % 24; y < JUMP_HEIGHT; y += 24) {
-    ctx.moveTo(0, y);
-    ctx.lineTo(JUMP_WIDTH, y);
-  }
-  ctx.stroke();
   for (const p of game.platforms) {
     const y = JUMP_HEIGHT - p.y + game.camera;
     if (p.broken) continue;
@@ -102,7 +90,7 @@ function JumpField({
     const keys = new Set<string>();
     const orientation = (event: DeviceOrientationEvent) => {
       if (event.gamma == null) return;
-      tilt = Math.round(Math.max(-5, Math.min(5, event.gamma / 4)));
+      tilt = Math.round(Math.max(-5, Math.min(5, event.gamma / 3)));
       if (!tiltSeen) {
         tiltSeen = true;
         setUsingTilt(true);
