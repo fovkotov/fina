@@ -35,15 +35,15 @@ function random(game: Jump) {
 
 function populate(game: Jump) {
   while (game.lastY < game.camera + JUMP_HEIGHT + 120) {
-    const difficulty = Math.min(game.lastY / 4800, 1);
-    const width = 87 - difficulty * 32;
-    game.lastY += 52 + random(game) * (27 + 14 * difficulty);
-    game.lastX = Math.max(32, Math.min(328, game.lastX + (random(game) - 0.5) * (115 + difficulty * 75)));
+    const difficulty = Math.min(game.lastY / 2500, 1);
+    const width = 87;
+    game.lastY += 52 + difficulty * 21 + random(game) * (27 - 2 * difficulty);
+    game.lastX = Math.max(32, Math.min(328, game.lastX + (random(game) - 0.5) * (115 + difficulty * 108)));
     const roll = random(game);
     const kind = game.lastY < 250 ? "normal"
       : roll < 0.035 ? "helicopter"
       : roll < 0.105 ? "boots"
-      : roll < 0.29 ? "cracked"
+      : roll < 0.29 + difficulty * 0.13 ? "cracked"
       : "normal";
     game.platforms.push({ x: game.lastX - width / 2, y: game.lastY, width, kind });
   }
@@ -63,6 +63,20 @@ export function stepJump(game: Jump, input: number) {
     game.vy -= 0.36;
   }
   game.y += game.vy;
+  for (const p of game.platforms) {
+    if (p.kind !== "boots" && p.kind !== "helicopter") continue;
+    const dx = Math.abs(game.x - (p.x + p.width / 2));
+    const dy = Math.abs(game.y - (p.y + 12));
+    if (Math.hypot(dx, dy) > PLAYER_RADIUS + 12) continue;
+    if (p.kind === "boots") {
+      game.boots = 2;
+      game.vy = Math.max(game.vy, 13.2);
+    } else {
+      game.flight = 108;
+      game.vy = 11;
+    }
+    p.kind = "normal";
+  }
   if (game.vy < 0) {
     for (let i = game.platforms.length - 1; i >= 0; i--) {
       const p = game.platforms[i];
@@ -70,14 +84,6 @@ export function stepJump(game: Jump, input: number) {
       if (game.x + PLAYER_RADIUS < p.x || game.x - PLAYER_RADIUS > p.x + p.width) continue;
       game.y = p.y + PLAYER_RADIUS;
       if (p.kind === "cracked") p.broken = true;
-      if (p.kind === "boots") {
-        game.boots = 3;
-        p.kind = "normal";
-      }
-      if (p.kind === "helicopter") {
-        game.flight = 108;
-        p.kind = "normal";
-      }
       game.vy = game.boots > 0 ? 13.2 : 8.9;
       if (game.boots > 0) game.boots--;
       break;

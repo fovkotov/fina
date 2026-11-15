@@ -6,7 +6,8 @@ import {
   createJump, JUMP_HEIGHT, JUMP_HZ, JUMP_WIDTH, jumpScore, stepJump,
   type Jump,
 } from "../../../worker/src/jump-engine";
-import { fetchJumpStatus, finishJumpRun, startJumpRun, type JumpStatus } from "@/lib/api";
+import { fetchJumpStatus, finishJumpRun, startJumpRun, savedMember, type JumpStatus } from "@/lib/api";
+import { AVATARS } from "@/lib/assets";
 import { Button } from "@/components/ui/button";
 import { SFX } from "@/lib/sounds";
 
@@ -25,7 +26,7 @@ function askForTilt() {
     : Promise.resolve(true);
 }
 
-function draw(ctx: CanvasRenderingContext2D, game: Jump) {
+function draw(ctx: CanvasRenderingContext2D, game: Jump, avatar?: HTMLImageElement) {
   ctx.fillStyle = "#151613";
   ctx.fillRect(0, 0, JUMP_WIDTH, JUMP_HEIGHT);
   ctx.strokeStyle = "#2a2c23";
@@ -62,18 +63,14 @@ function draw(ctx: CanvasRenderingContext2D, game: Jump) {
     }
   }
   const y = JUMP_HEIGHT - game.y + game.camera;
-  ctx.fillStyle = "#f2bd52";
-  ctx.strokeStyle = "#fce5a7";
-  ctx.lineWidth = 2;
+  ctx.save();
   ctx.beginPath();
   ctx.arc(game.x, y, 13, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = "#322616";
-  ctx.font = "bold 17px system-ui";
-  ctx.textAlign = "center";
-  ctx.fillText("₽", game.x, y + 6);
-  if (game.flight > 0) ctx.fillText("✦", game.x, y - 17);
+  ctx.clip();
+  ctx.fillStyle = "#d8e78e";
+  ctx.fillRect(game.x - 13, y - 13, 26, 26);
+  if (avatar?.complete && avatar.naturalWidth) ctx.drawImage(avatar, game.x - 13, y - 13, 26, 26);
+  ctx.restore();
 }
 
 function JumpField({
@@ -94,7 +91,10 @@ function JumpField({
   useEffect(() => {
     const ctx = canvas.current?.getContext("2d");
     if (!ctx) return;
-    draw(ctx, run.game);
+    const src = AVATARS[savedMember()?.name ?? ""];
+    const avatar = src ? new Image() : undefined;
+    if (avatar && src) avatar.src = src;
+    draw(ctx, run.game, avatar);
     if (paused) return;
 
     let tilt = 0;
@@ -136,7 +136,7 @@ function JumpField({
         run.input.push(String.fromCharCode(53 + input));
         stepJump(run.game, input);
       }
-      draw(ctx, run.game);
+      draw(ctx, run.game, avatar);
       const next = jumpScore(run.game);
       if (next !== reported && (run.game.done || run.game.ticks % 4 === 0)) {
         reported = next;
@@ -157,7 +157,7 @@ function JumpField({
   }, [run, paused]);
 
   return (
-    <div className="relative mx-auto grid min-h-0 w-full max-w-[360px] flex-1 place-items-center overflow-hidden rounded-2xl bg-[#151613]">
+    <div className="relative mx-auto grid min-h-0 w-full max-w-[288px] flex-1 place-items-center overflow-hidden rounded-2xl bg-[#151613]">
       <canvas
         ref={canvas}
         width={JUMP_WIDTH}
@@ -211,6 +211,16 @@ export function DoodleJump({ onPrize }: { onPrize: () => void }) {
   const [result, setResult] = useState<number | null>(null);
   const [error, setError] = useState("");
   const sentPrize = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    let active = true;
+    void fetchJumpStatus().then((data) => {
+      if (active && !opening.current) setStatus((current) => current ?? data);
+    }, () => undefined);
+    return () => { active = false; };
+  }, []);
+
+  const me = status?.players.find((player) => player.id === savedMember()?.id);
 
   function report(data: JumpStatus) {
     setStatus(data);
@@ -299,11 +309,10 @@ export function DoodleJump({ onPrize }: { onPrize: () => void }) {
         data-cuelume-press={SFX.nav}
         onClick={() => void start()}
       >
-        <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-full bg-[#f2bd52] text-base font-bold text-[#322616]">₽</span>
         <span className="grid min-w-0 gap-0.5">
           <span className="text-[13px] font-semibold sm:text-sm">Doodle Jump</span>
           <span className="text-muted-foreground text-[11px] font-normal">
-            {status ? `Попытки: ${status.remaining} / 3` : "3 попытки · 500 ₽"}
+            {me?.used ? `${number.format(me.best)}・${me.used} из 3` : "3 попытки · 500 ₽"}
           </span>
         </span>
         <ArrowUpRight aria-hidden="true" className="text-muted-foreground ml-auto hidden size-3.5 sm:block" />
@@ -356,7 +365,7 @@ export function DoodleJump({ onPrize }: { onPrize: () => void }) {
             <div className="grid gap-5">
               {result !== null && (
                 <div>
-                  <p className="text-muted-foreground text-sm">Минус высота</p>
+                  <p className="text-muted-foreground text-sm">Результат</p>
                   <p className="text-4xl font-semibold tabular-nums">{number.format(result)}</p>
                 </div>
               )}
