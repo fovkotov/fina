@@ -35,6 +35,7 @@ import {
   savedToken,
   setApiBase,
   sortTransactions,
+  transactionTypeLabel,
   updateTransaction,
   type Account,
   type Summary,
@@ -453,7 +454,7 @@ function TxRowBody({
       {/* w-0: иначе неразрывный текст строки задаёт min-content всей странице */}
       <div className="w-0 min-w-0 flex-1">
         <p className="truncate text-sm leading-tight font-medium">
-          {TYPE_LABELS[tx.type]}
+          {transactionTypeLabel(tx.type, tx.account)}
           {txPartiesLabel(tx) && (
             <span className="text-muted-foreground font-normal">
               {` · ${txPartiesLabel(tx)}`}
@@ -1355,7 +1356,7 @@ export function FinaApp() {
                       <div className="grid gap-2">
                         <Label>Тип</Label>
                         <select
-                          className="field border-input bg-background h-10 rounded-md border px-3 text-base md:text-sm"
+                          className="field border-input bg-background h-[44px] rounded-md border px-3 text-base md:h-10 md:text-sm"
                           value={editing.type}
                           onChange={(e) => {
                             sfx("nav");
@@ -1372,9 +1373,11 @@ export function FinaApp() {
                             });
                           }}
                         >
-                          {ALL_TYPES.map((t) => (
+                          {ALL_TYPES.filter(
+                            (t) => account !== "yandex" || t !== "cashback" || editing.type === t,
+                          ).map((t) => (
                             <option key={t} value={t}>
-                              {TYPE_LABELS[t]}
+                              {transactionTypeLabel(t, account)}
                             </option>
                           ))}
                         </select>
@@ -1396,7 +1399,7 @@ export function FinaApp() {
                             {editing.type === "transfer" ? "От кого" : "Участник"}
                           </Label>
                           <select
-                            className="field border-input bg-background h-10 rounded-md border px-3 text-base md:text-sm"
+                            className="field border-input bg-background h-[44px] rounded-md border px-3 text-base md:h-10 md:text-sm"
                             value={editing.memberId}
                             onChange={(e) => {
                               sfx("nav");
@@ -1420,7 +1423,7 @@ export function FinaApp() {
                         <div className="grid gap-2">
                           <Label>Кому</Label>
                           <select
-                            className="field border-input bg-background h-10 rounded-md border px-3 text-base md:text-sm"
+                            className="field border-input bg-background h-[44px] rounded-md border px-3 text-base md:h-10 md:text-sm"
                             value={editing.toMemberId}
                             onChange={(e) => {
                               sfx("nav");
@@ -1655,17 +1658,20 @@ export function FinaApp() {
               <div
                 role="group"
                 aria-label="Счёт"
-                className="bg-muted flex w-fit gap-1 rounded-lg p-1"
+                className="bg-muted relative isolate grid w-fit grid-cols-2 rounded-xl p-1"
               >
+                <span
+                  aria-hidden="true"
+                  className={`account-indicator pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-lg bg-background shadow-sm ${account === "yandex" ? "translate-x-full" : ""}`}
+                />
                 {ACCOUNTS.map(({ id, label }) => (
                   <Button
                     key={id}
                     type="button"
                     variant="ghost"
-                    size="sm"
                     aria-pressed={id === account}
                     disabled={id === "yandex" && !summaries?.yandex}
-                    className="aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm"
+                    className="relative h-[44px] px-5 hover:bg-transparent dark:hover:bg-transparent"
                     data-cuelume-press={SFX.nav}
                     onClick={() => {
                       if (id === account) return;
@@ -1714,7 +1720,7 @@ export function FinaApp() {
               </div>
               <div className="mt-1 grid grid-cols-3 gap-2 text-[clamp(0.75rem,3.4vw,0.875rem)]">
                 <div className="stagger-item">
-                  <p className="text-muted-foreground">{account === "rocket" ? "Изи мани" : "Начисления"}</p>
+                  <p className="text-muted-foreground">{account === "rocket" ? "Изи мани" : "Доход"}</p>
                   <p className="font-medium tabular-nums">
                     <RollingMoney
                       cents={summary?.accrualsCents ?? 0}
@@ -1730,6 +1736,7 @@ export function FinaApp() {
                 стороны (сверху 16 из gap колонки плюс mt-4). */}
             <section className="border-border/70 mt-4 border-t pt-8">
               <TxComposer
+                account={account}
                 type={opType}
                 onTypeChange={setOpType}
                 special={opSpecial}
@@ -1833,7 +1840,7 @@ export function FinaApp() {
             <AlertDialogTitle>Удалить операцию?</AlertDialogTitle>
             <AlertDialogDescription>
               {pendingDelete
-                ? `${TYPE_LABELS[pendingDelete.type]} · ${formatMoney(pendingDelete.amountCents)} · ${formatDate(pendingDelete.occurredAt)}`
+                ? `${transactionTypeLabel(pendingDelete.type, pendingDelete.account)} · ${formatMoney(pendingDelete.amountCents)} · ${formatDate(pendingDelete.occurredAt)}`
                 : ""}
             </AlertDialogDescription>
             <p className="text-muted-foreground text-sm">Отменить не получится.</p>

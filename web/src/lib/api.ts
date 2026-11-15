@@ -665,3 +665,9 @@ export const TYPE_LABELS: Record<TransactionType, string> = {
   cashback: "Кэшбэк",
   transfer: "Перевод",
 };
+
+export function transactionTypeLabel(type: TransactionType, account?: Account) {
+  return account === "yandex" && (type === "interest" || type === "cashback")
+    ? "Доход"
+    : TYPE_LABELS[type];
+}

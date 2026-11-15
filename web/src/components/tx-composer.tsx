@@ -7,7 +7,7 @@ import { TextMorph } from "torph/react";
 import { Button } from "@/components/ui/button";
 import { AVATARS, SIGN_IMAGES } from "@/lib/assets";
 import { SFX } from "@/lib/sounds";
-import { TYPE_LABELS, type Member } from "@/lib/api";
+import { transactionTypeLabel, type Account, type Member } from "@/lib/api";
 
 export type OpType = "deposit" | "withdrawal";
 
@@ -83,7 +83,7 @@ function MemberAvatar({
       type="button"
       aria-label={label}
       title={member?.name ?? undefined}
-      className="pressable size-[42px] shrink-0 overflow-hidden rounded-full"
+      className="pressable grid size-[44px] place-items-center shrink-0 overflow-hidden rounded-full"
       data-cuelume-press={SFX.nav}
       data-cuelume-release={SFX.release}
       onClick={onClick}
@@ -111,6 +111,7 @@ function MemberAvatar({
 }
 
 type Props = {
+  account: Account;
   type: OpType;
   onTypeChange: (type: OpType) => void;
   special: SpecialType | null;
@@ -129,6 +130,7 @@ type Props = {
 };
 
 export function TxComposer({
+  account,
   type,
   onTypeChange,
   special,
@@ -241,17 +243,17 @@ export function TxComposer({
       }}
     >
       <div className="flex flex-wrap items-center gap-[6px]">
-        {SPECIAL_TYPES.map((t) => (
+        {SPECIAL_TYPES.filter((t) => account !== "yandex" || t !== "cashback").map((t) => (
           <button
             key={t}
             type="button"
             aria-pressed={special === t}
             /* Крестик уже намекает на снятие выбора, но скринридеру нужен текст. */
             aria-label={
-              special === t ? `${TYPE_LABELS[t]}, снять выбор` : undefined
+              special === t ? `${transactionTypeLabel(t, account)}, снять выбор` : undefined
             }
             /* Тот же чип, что у быстрых сумм снизу; выбранный — в акценте. */
-            className={`pressable flex items-center justify-center gap-[5px] rounded-[30px] px-[15px] py-[8px] text-[16px] font-medium ${
+            className={`pressable flex min-h-[44px] items-center justify-center gap-[5px] rounded-[30px] px-[15px] py-[8px] text-[16px] font-medium ${
               special === t
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground"
@@ -260,7 +262,7 @@ export function TxComposer({
             data-cuelume-release={SFX.release}
             onClick={() => onSpecialChange(special === t ? null : t)}
           >
-            {TYPE_LABELS[t]}
+            {transactionTypeLabel(t, account)}
             {special === t && (
               /* Не вложенная кнопка: клик по всему чипу и так снимает выбор. */
               <X className="swap-in size-[15px]" strokeWidth={2.5} aria-hidden />
@@ -289,13 +291,13 @@ export function TxComposer({
             type="button"
             aria-label={
               special
-                ? TYPE_LABELS[special]
+                ? transactionTypeLabel(special, account)
                 : type === "withdrawal"
                   ? "Списание"
                   : "Внесение"
             }
             /* Без круглой маски: у знака руки и ноги доходят до краёв картинки. */
-            className="pressable size-[42px] shrink-0"
+            className="pressable grid size-[44px] place-items-center shrink-0"
             data-cuelume-press={SFX.nav}
             data-cuelume-release={SFX.release}
             onClick={() => {
@@ -352,7 +354,7 @@ export function TxComposer({
             type="button"
             aria-label={`Операция от ${fromMember?.name ?? "участника"}`}
             title={fromMember?.name ?? undefined}
-            className="pressable size-[42px] shrink-0 overflow-hidden rounded-full"
+            className="pressable grid size-[44px] place-items-center shrink-0 overflow-hidden rounded-full"
             data-cuelume-press={SFX.nav}
             data-cuelume-release={SFX.release}
             onClick={nextMember}
@@ -384,7 +386,7 @@ export function TxComposer({
           <button
             key={value}
             type="button"
-            className="pressable bg-muted text-muted-foreground flex w-[90px] items-center justify-center rounded-[30px] px-[15px] py-[8px] text-[16px] font-medium tabular-nums"
+            className="pressable bg-muted text-muted-foreground flex min-h-[44px] w-[90px] items-center justify-center rounded-[30px] px-[15px] py-[8px] text-[16px] font-medium tabular-nums"
             data-cuelume-press={SFX.nav}
             data-cuelume-release={SFX.release}
             onClick={() => applyQuick(value)}
