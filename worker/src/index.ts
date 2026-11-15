@@ -14,6 +14,8 @@ import {
   type TxType,
 } from "./db.js";
 
+import { finishJump, jumpStatus, settleJump, startJump } from "./jump.js";
+
 const TX_TYPES: TxType[] = [
   "deposit",
   "withdrawal",
@@ -346,9 +348,41 @@ async function route(req: Request, env: Env): Promise<Response> {
     return login(req, env);
   }
 
+  if (pathname === "/api/jump" && (method === "GET" || method === "POST")) {
+    const { data, auth } = await authorize(req, env);
+    if (!auth) return json(req, env, { error: "Unauthorized" }, 401);
+    const now = Date.now();
+    if (method === "GET") {
+      if (settleJump(data, auth.session.household_id, now)) await saveDb(env, data);
+      return json(req, env, jumpStatus(data, auth.session, now));
+    }
+
+    const body = await req.json() as { action?: string; requestId?: string; runId?: string; tape?: string };
+    if (body.action === "start" && typeof body.requestId === "string" && /^[\w-]{16,64}$/.test(body.requestId)) {
+      const started = startJump(data, auth.session, body.requestId, now);
+      if (!started) return json(req, env, { error: "Попытки закончились или заход уже завершён" }, 409);
+      const settled = settleJump(data, auth.session.household_id, now);
+      if (started.created || settled) await saveDb(env, data);
+      return json(req, env, {
+        ...jumpStatus(data, auth.session, now),
+        runId: started.run.id,
+        seed: started.run.seed,
+      });
+    }
+    if (body.action === "finish" && typeof body.runId === "string" && typeof body.tape === "string") {
+      const finished = finishJump(data, auth.session, body.runId, body.tape, now);
+      if (!finished) return json(req, env, { error: "Не удалось подтвердить результат захода" }, 422);
+      const settled = settleJump(data, auth.session.household_id, now);
+      if (finished.changed || settled) await saveDb(env, data);
+      return json(req, env, { ...jumpStatus(data, auth.session, now), score: finished.score });
+    }
+    return json(req, env, { error: "Некорректный запрос игры" }, 400);
+  }
+
   if (pathname === "/api/summary" && method === "GET") {
     const { data, auth } = await authorize(req, env);
     if (!auth) return json(req, env, { error: "Unauthorized" }, 401);
+    if (settleJump(data, auth.session.household_id, Date.now())) await saveDb(env, data);
     return json(req, env, {
       ...getSummary(data, auth.session.household_id),
       rev: data.rev ?? 0,
@@ -373,6 +407,7 @@ async function route(req: Request, env: Env): Promise<Response> {
     if (method === "GET") {
       const { data, auth } = await authorize(req, env);
       if (!auth) return json(req, env, { error: "Unauthorized" }, 401);
+      if (settleJump(data, auth.session.household_id, Date.now())) await saveDb(env, data);
       const rows = listTransactions(data, auth.session.household_id, allAccounts).map((t) =>
         serializeTx(data, t),
       );
@@ -408,10 +443,21 @@ async function route(req: Request, env: Env): Promise<Response> {
   return json(req, env, { error: "Not found" }, 404);
 }
 
+// Gist stores the whole ledger as one document. Serialize read–modify–write
+// requests within the process so a game write cannot overwrite a ledger write.
+let writes: Promise<unknown> = Promise.resolve();
+
 /** Общий вход для обоих рантаймов: воркера Cloudflare и Node-функции Vercel. */
 export async function handleApiRequest(req: Request, env: Env): Promise<Response> {
   try {
-    return await route(req, env);
+    if (req.method === "OPTIONS") return await route(req, env);
+    const path = new URL(req.url).pathname;
+    if (req.method === "GET" && !["/api/summary", "/api/jump", "/api/transactions"].includes(path)) {
+      return await route(req, env);
+    }
+    const next = writes.then(() => route(req, env));
+    writes = next.catch(() => undefined);
+    return await next;
   } catch (e) {
     return json(req, env, { error: e instanceof Error ? e.message : "Error" }, 500);
   }

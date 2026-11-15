@@ -64,6 +64,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { DoodleJump } from "@/components/doodle-jump";
 import {
   Card,
   CardContent,
@@ -1333,6 +1334,7 @@ export function FinaApp() {
   }
 
   function toggleHideBalances() {
+    endGesture();
     setHideBalances((prev) => {
       const next = !prev;
       writeFlag(HIDE_BALANCES_KEY, next);
@@ -1391,7 +1393,7 @@ export function FinaApp() {
       row.dataset.entryVisible = "true";
       row.style.setProperty("--ledger-entry-delay", `${Math.min(index, 7) * 40}ms`);
     });
-  }, [loggedIn, months]);
+  }, [loggedIn, months, hideBalances]);
   const lifted = drag ? (ordered.find((t) => t.id === drag.id) ?? null) : null;
   const mom = useMemo(() => monthOverMonth(accountTransactions), [accountTransactions]);
   const monthlyMemberTotals = useMemo(() => {
@@ -1870,9 +1872,9 @@ export function FinaApp() {
                   </div>
                 ))}
               </div>
-              <div className="mt-1 grid grid-cols-3 gap-2 text-[clamp(0.75rem,3.4vw,0.875rem)]">
+              <div className="mt-1 grid grid-cols-2 items-start gap-4 text-[clamp(0.75rem,3.4vw,0.875rem)]">
                 <div className="stagger-item">
-                  <p className="text-muted-foreground">{account === "rocket" ? "Изи мани" : "Доход"}</p>
+                  <p className="text-muted-foreground">Изи мани</p>
                   <p className="font-medium tabular-nums">
                     <RollingMoney
                       cents={summary?.accrualsCents ?? 0}
@@ -1881,6 +1883,7 @@ export function FinaApp() {
                   </p>
                   {!hideBalances && <MomDelta cents={mom.accrualsCents} />}
                 </div>
+                <DoodleJump onPrize={() => void refresh({ background: true, silent: true })} />
               </div>
             </section>
 
@@ -1926,7 +1929,7 @@ export function FinaApp() {
 
           {/* На мобилке список сразу под композером, без второй линейки:
               черта остаётся только между цифрами и полем. */}
-          {ledger}
+          {!hideBalances && ledger}
         </div>
 
         {/* Выход — последнее, что есть на странице: под обеими колонками. */}

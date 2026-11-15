@@ -1,3 +1,5 @@
+import type { JumpRun } from "./jump.js";
+
 export type TxType = "deposit" | "withdrawal" | "interest" | "cashback" | "transfer";
 
 export type Account = "rocket" | "yandex";
@@ -45,6 +47,8 @@ export type DbData = {
   members: Member[];
   transactions: Transaction[];
   sessions: Session[];
+  jumpRuns?: JumpRun[];
+  jumpSettled?: string[];
   /** Счётчик записей. Клиент по нему отличает свежий ответ от отставшего. */
   rev?: number;
 };

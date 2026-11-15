@@ -675,3 +675,28 @@ export function transactionTypeLabel(type: TransactionType, account?: Account) {
     ? "Доход"
     : TYPE_LABELS[type];
 }
+
+export type JumpStatus = {
+  month: string;
+  remaining: number;
+  players: { id: string; name: string; best: number; used: number }[];
+  prize: { winner?: string; month?: string } | null;
+};
+
+export function fetchJumpStatus() {
+  return request<JumpStatus>("/api/jump");
+}
+
+export function startJumpRun(requestId: string) {
+  return request<JumpStatus & { runId: string; seed: number }>("/api/jump", {
+    method: "POST",
+    body: JSON.stringify({ action: "start", requestId }),
+  });
+}
+
+export function finishJumpRun(runId: string, tape: string) {
+  return request<JumpStatus & { score: number }>("/api/jump", {
+    method: "POST",
+    body: JSON.stringify({ action: "finish", runId, tape }),
+  });
+}
