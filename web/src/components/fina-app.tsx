@@ -1310,6 +1310,23 @@ export function FinaApp() {
   const months = useMemo(() => groupByMonth(ordered), [ordered]);
   const lifted = drag ? (ordered.find((t) => t.id === drag.id) ?? null) : null;
   const mom = useMemo(() => monthOverMonth(accountTransactions), [accountTransactions]);
+  const currentMonth = calendarMonthKey();
+  const monthlyMemberTotals = useMemo(() => {
+    const totals = new Map<string, { deposit: number; withdrawal: number }>();
+    for (const tx of accountTransactions) {
+      if (
+        !tx.memberId ||
+        (tx.type !== "deposit" && tx.type !== "withdrawal") ||
+        monthKeyOf(tx.occurredAt) !== currentMonth
+      ) continue;
+
+      const member = totals.get(tx.memberId) ?? { deposit: 0, withdrawal: 0 };
+      member[tx.type] += tx.amountCents;
+      totals.set(tx.memberId, member);
+    }
+    return totals;
+  }, [accountTransactions, currentMonth]);
+  const monthlyTotalsReady = txRev >= 0 && txRev >= ledgerRev;
   const overallMom = useMemo(() => monthOverMonth(transactions), [transactions]);
   gestureLive.current = { onRowPointerDown, startEdit, askRemove, saveEdit, cancelEdit };
   // Поле суммы живёт в этом же компоненте. Без этой границы каждый символ
@@ -1701,8 +1718,8 @@ export function FinaApp() {
                     </p>
                     <dl className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 text-xs font-medium tabular-nums">
                       {[
-                        { label: "Пополнения", cents: m.depositsCents, sign: "+" as const },
-                        { label: "Списания", cents: m.withdrawalsCents, sign: "−" as const },
+                        { label: "Пополнения за текущий месяц", cents: monthlyTotalsReady ? (monthlyMemberTotals.get(m.id)?.deposit ?? 0) : undefined, sign: "+" as const },
+                        { label: "Списания за текущий месяц", cents: monthlyTotalsReady ? (monthlyMemberTotals.get(m.id)?.withdrawal ?? 0) : undefined, sign: "−" as const },
                       ].map(({ label, cents, sign }) => (
                         <div key={label}>
                           <dt className="sr-only">{label}</dt>
