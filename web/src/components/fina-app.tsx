@@ -1311,7 +1311,9 @@ export function FinaApp() {
     // необычный тип — разовый выбор, следующая операция снова обычная
     setOpSpecial(null);
 
-    if (type === "deposit" || type === "interest" || type === "cashback") {
+    const isCredit = type === "deposit" || type === "interest" || type === "cashback";
+    if (isCredit) {
+      sfx("success");
       setCelebrations((active) => [...active, id]);
     }
 
@@ -1319,7 +1321,7 @@ export function FinaApp() {
       const res = await enqueue(() => createTransaction(body));
       noteWrite(res.rev);
       setSummaryBase(res.summary);
-      sfx(type === "withdrawal" ? "remove" : "success");
+      if (!isCredit) sfx(type === "withdrawal" ? "remove" : "success");
       setTransactions((prev) =>
         sortTransactions(prev.map((t) => (t.id === id ? res.transaction : t))),
       );

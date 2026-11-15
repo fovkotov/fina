@@ -295,7 +295,7 @@ export function TxComposer({
                   : "Внесение"
             }
             /* Без круглой маски: у знака руки и ноги доходят до краёв картинки. */
-            className="pressable grid size-[44px] place-items-center shrink-0"
+            className={`pressable flex h-[44px] shrink-0 items-center justify-center ${signType === "deposit" ? "w-[84px]" : "w-[44px]"}`}
             data-cuelume-press={SFX.nav}
             onClick={() => {
               // у начисления знака нет: первое нажатие возвращает обычную операцию
@@ -306,7 +306,7 @@ export function TxComposer({
             {signType === "deposit" && (
               <video
                 aria-hidden="true"
-                className="swap-in col-start-1 row-start-1 hidden size-[42px] object-contain motion-safe:block"
+                className="swap-in hidden size-[84px] shrink-0 object-contain motion-safe:block"
                 autoPlay
                 muted
                 loop
@@ -318,7 +318,7 @@ export function TxComposer({
             )}
             <Image
               key={signType}
-              className={`swap-in col-start-1 row-start-1 size-[42px] object-contain ${signType === "deposit" ? "motion-safe:hidden" : ""}`}
+              className={`swap-in shrink-0 object-contain ${signType === "deposit" ? "size-[84px] motion-safe:hidden" : "size-[42px]"}`}
               src={SIGN_IMAGES[signType]}
               alt=""
               width={42}
