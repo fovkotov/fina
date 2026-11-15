@@ -79,8 +79,7 @@ const HIDDEN_MONEY = "••••••";
 
 function moneyParts(cents: number) {
   return new Intl.NumberFormat("ru-RU", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 0,
   }).formatToParts(cents / 100);
 }
 
@@ -92,7 +91,7 @@ function formatRollingMoney(cents: number) {
 
 /**
  * Крупная сумма: группы разрядов отдельно, между ними неразрывный пробел.
- * Ключи справа, чтобы новый разряд слева не перезапускал анимацию копеек.
+ * Ключи справа, чтобы новый разряд слева не перезапускал анимацию младших разрядов.
  */
 function wideMoneyPieces(cents: number) {
   const pieces: { gap: boolean; text: string }[] = [];

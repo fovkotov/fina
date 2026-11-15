@@ -638,7 +638,7 @@ export function formatMoney(cents: number) {
   return new Intl.NumberFormat("ru-RU", {
     style: "currency",
     currency: "RUB",
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 0,
   }).formatToParts(cents / 100)
     .map((part) => part.type === "group" ? MONEY_GROUP_SEPARATOR : part.value)
     .join("");
