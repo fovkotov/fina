@@ -611,3 +611,28 @@ html.tx-dragging body {
     transition: none;
   }
 }
+
+.credit-portrait {
+  animation: credit-portrait 2200ms ease both;
+}
+
+.credit-particle {
+  animation: credit-particle 1050ms var(--ease-out) both;
+}
+
+@keyframes credit-portrait {
+  0%, 100% { opacity: 0; }
+  8%, 25% { opacity: 1; }
+}
+
+@keyframes credit-particle {
+  0% { opacity: 0; transform: scale(0.94); }
+  12% { opacity: 1; }
+  48% { transform: translate(var(--credit-x), var(--credit-y)) rotate(calc(var(--credit-spin) / 2)); }
+  100% { opacity: 0; transform: translate(var(--credit-x), var(--credit-drop)) rotate(var(--credit-spin)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .credit-particle { display: none; }
+  .credit-portrait { animation-duration: 900ms; }
+}

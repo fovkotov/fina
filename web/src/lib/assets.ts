@@ -9,3 +9,7 @@ export const SIGN_IMAGES = {
   deposit: `${BASE_PATH}/assets/sign-plus.png`,
   withdrawal: `${BASE_PATH}/assets/sign-minus.png`,
 };
+export const CREDIT_IMAGES = {
+  particle: `${BASE_PATH}/assets/credit-particle.png`,
+  portrait: `${BASE_PATH}/assets/credit-portrait.png`,
+};

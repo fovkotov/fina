@@ -6,9 +6,11 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type FormEvent,
   type MouseEvent,
 } from "react";
+import Image from "next/image";
 import { createPortal } from "react-dom";
 import { TextMorph } from "torph/react";
 import { bind } from "cuelume";
@@ -43,6 +45,7 @@ import {
   type Transaction,
   type TransactionType,
 } from "@/lib/api";
+import { CREDIT_IMAGES } from "@/lib/assets";
 import { SFX, sfx } from "@/lib/sounds";
 import {
   TxComposer,
@@ -508,7 +511,53 @@ function TxRowBody({
   );
 }
 
+const CREDIT_PARTICLES = Array.from({ length: 16 }, (_, index) => {
+  const angle = (index / 16) * Math.PI * 2;
+  const distance = 12 + (index % 4) * 5;
+  const x = Math.cos(angle) * distance;
+  const y = Math.sin(angle) * distance;
+  return {
+    "--credit-x": `${x}vmin`,
+    "--credit-y": `${y - 8}vmin`,
+    "--credit-drop": `${y + 18}vmin`,
+    "--credit-spin": `${index % 2 ? 180 : -180}deg`,
+    animationDelay: `${(index % 4) * 35}ms`,
+  } as CSSProperties;
+});
+
+function CreditCelebration({ onEnd }: { onEnd: () => void }) {
+  return createPortal(
+    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-50 grid place-items-center overflow-hidden">
+      <Image
+        src={CREDIT_IMAGES.portrait}
+        alt=""
+        width={735}
+        height={954}
+        loading="eager"
+        unoptimized
+        className="credit-portrait col-start-1 row-start-1 h-auto max-h-[65dvh] w-auto max-w-[68vw] object-contain"
+        onAnimationEnd={onEnd}
+      />
+      {CREDIT_PARTICLES.map((style, index) => (
+        <Image
+          key={index}
+          src={CREDIT_IMAGES.particle}
+          alt=""
+          width={160}
+          height={107}
+          loading="eager"
+          unoptimized
+          className="credit-particle col-start-1 row-start-1 h-auto w-[clamp(30px,8vmin,66px)]"
+          style={style}
+        />
+      ))}
+    </div>,
+    document.body,
+  );
+}
+
 export function FinaApp() {
+  const [celebrations, setCelebrations] = useState<string[]>([]);
   const [loggedIn, setLoggedIn] = useState(false);
   /** С сервера берём только неизменяемую часть: кто участники и как зовут кабинет. */
   const [summaryBase, setSummaryBase] = useState<Summary | null>(null);
@@ -1270,6 +1319,9 @@ export function FinaApp() {
       setTransactions((prev) =>
         sortTransactions(prev.map((t) => (t.id === id ? res.transaction : t))),
       );
+      if (type === "deposit" || type === "interest" || type === "cashback") {
+        setCelebrations((active) => [...active, res.transaction.id]);
+      }
     } catch (err) {
       setTransactions((prev) => prev.filter((t) => t.id !== id));
       flashError(err instanceof Error ? err.message : "Не удалось сохранить");
@@ -1801,6 +1853,7 @@ export function FinaApp() {
             onClick={() => {
               endGesture();
               logout();
+              setCelebrations([]);
               setAccount("rocket");
               setLoggedIn(false);
               setSummaryBase(null);
@@ -1818,6 +1871,13 @@ export function FinaApp() {
           </Button>
         </div>
       </div>
+
+      {celebrations.map((id) => (
+        <CreditCelebration
+          key={id}
+          onEnd={() => setCelebrations((active) => active.filter((item) => item !== id))}
+        />
+      ))}
 
       {lifted && drag
         ? createPortal(
