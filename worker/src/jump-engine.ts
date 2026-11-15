@@ -38,7 +38,14 @@ function populate(game: Jump) {
     const difficulty = Math.min(game.lastY / 2500, 1);
     const width = 87;
     game.lastY += 52 + difficulty * 21 + random(game) * (27 - 2 * difficulty);
-    game.lastX = Math.max(32, Math.min(328, game.lastX + (random(game) - 0.5) * (115 + difficulty * 108)));
+    const offset = (random(game) - 0.5) * (115 + difficulty * 108);
+    const nearEdge = game.lastX < 55 || game.lastX > 305;
+    const wrapJump = game.lastY > 4500 && nearEdge && random(game) < 0.045;
+    if (wrapJump) {
+      game.lastX = game.lastX < 55 ? 316 : 44;
+    } else {
+      game.lastX = Math.max(32, Math.min(328, game.lastX + offset));
+    }
     const roll = random(game);
     const kind = game.lastY < 250 ? "normal"
       : roll < 0.035 ? "helicopter"
