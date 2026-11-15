@@ -1766,7 +1766,7 @@ export function FinaApp() {
                     </Button>
                   </div>
                   <div
-                    className="digit-play font-heading text-[clamp(1.375rem,13.25cqw,3rem)] leading-none font-semibold whitespace-nowrap tabular-nums"
+                    className="digit-play font-heading relative top-0.5 text-[clamp(1.375rem,13.25cqw,3rem)] leading-none font-semibold whitespace-nowrap tabular-nums"
                     onMouseOver={onTotalDigitOver}
                     onMouseOut={onTotalDigitOut}
                   >
@@ -1835,7 +1835,7 @@ export function FinaApp() {
                     style={{ animationDelay: `${i * 40}ms` }}
                   >
                     <p className="text-muted-foreground text-xs sm:text-sm">{m.name}</p>
-                    <p className="text-[clamp(0.9375rem,4.6vw,1.5rem)] leading-tight font-semibold tracking-tight tabular-nums">
+                    <p className="relative top-0.5 text-[clamp(0.9375rem,4.6vw,1.5rem)] leading-tight font-semibold tracking-tight tabular-nums">
                       <RollingMoney cents={m.balanceCents ?? 0} hidden={hideBalances} />
                     </p>
                     <dl className="mt-1 flex flex-wrap gap-x-1 gap-y-0.5 text-xs font-medium tabular-nums max-[359px]:grid">
