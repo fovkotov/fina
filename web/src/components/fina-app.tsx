@@ -36,6 +36,7 @@ import {
   setApiBase,
   sortTransactions,
   updateTransaction,
+  type Account,
   type Summary,
   type Transaction,
   type TransactionType,
@@ -64,6 +65,10 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+const ACCOUNTS = [
+  { id: "rocket", label: "Рокет" },
+  { id: "yandex", label: "Яндекс" },
+] as const;
 const NAMES = ["Аня", "Андрей"] as const;
 const ALL_TYPES = Object.keys(TYPE_LABELS) as TransactionType[];
 const HIDE_BALANCES_KEY = "fina-hide-balances";
@@ -527,6 +532,11 @@ export function FinaApp() {
   /** С сервера берём только неизменяемую часть: кто участники и как зовут кабинет. */
   const [summaryBase, setSummaryBase] = useState<Summary | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [account, setAccount] = useState<Account>("rocket");
+  const accountTransactions = useMemo(
+    () => transactions.filter((tx) => (tx.account ?? "rocket") === account),
+    [transactions, account],
+  );
   /** Версия сводки и версия списка живут отдельно: список может отстать, цифры — нет. */
   const [ledgerRev, setLedgerRev] = useState(0);
   const [txRev, setTxRev] = useState(-1);
@@ -555,14 +565,21 @@ export function FinaApp() {
    * старому списку обнулил бы шапку. Когда список тот же версии — считаем сами,
    * чтобы оптимистичная строка сразу двигала сумму.
    */
-  const summary = useMemo(() => {
+  const summaries = useMemo(() => {
     if (!summaryBase) return null;
-    if (txRev >= 0 && txRev >= ledgerRev) return recomputeSummary(summaryBase, transactions);
-    return applyPending(
-      summaryBase,
-      transactions.filter((t) => t.pending),
-    );
+    const { yandex, ...rocket } = summaryBase;
+    const summarize = (base: Summary, account: Account) => {
+      const list = transactions.filter((tx) => (tx.account ?? "rocket") === account);
+      if (txRev >= 0 && txRev >= ledgerRev) return recomputeSummary(base, list);
+      return applyPending(base, list.filter((tx) => tx.pending));
+    };
+    return {
+      ...summarize(rocket, "rocket"),
+      yandex: yandex && summarize(yandex, "yandex"),
+    };
   }, [summaryBase, transactions, txRev, ledgerRev]);
+  const summary = account === "rocket" ? summaries : summaries?.yandex;
+  const overallTotal = (summaries?.totalCents ?? 0) + (summaries?.yandex?.totalCents ?? 0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [inviteCode, setInviteCode] = useState("FINA26");
@@ -598,8 +615,8 @@ export function FinaApp() {
   const longPress = useRef<{ timer: number; pointerId: number } | null>(null);
   const dragRef = useRef<(RowDrag & { pointerId: number; y: number }) | null>(null);
   const liftRef = useRef<HTMLDivElement | null>(null);
-  const transactionsRef = useRef(transactions);
-  transactionsRef.current = transactions;
+  const transactionsRef = useRef(accountTransactions);
+  transactionsRef.current = accountTransactions;
   /** Слушатели жеста живут на window: строка уезжает в портал и теряет capture. */
   const gestureCleanup = useRef<(() => void) | null>(null);
   /** Отпускание после перетаскивания не должно кликнуть то, что оказалось под пальцем. */
@@ -662,15 +679,15 @@ export function FinaApp() {
    * отдельно и только когда он той же версии, что и цифры.
    */
   useEffect(() => {
-    if (!summary || !summaryBase) return;
+    if (!summaries || !summaryBase) return;
     if (transactions.some((t) => t.pending)) return;
     if (txRev >= 0 && txRev >= ledgerRev) {
-      saveSummaryCache(summary, txRev);
+      saveSummaryCache(summaries, txRev);
       saveTxCache(transactions, txRev);
       return;
     }
     if (ledgerRev > 0) saveSummaryCache(summaryBase, ledgerRev);
-  }, [summary, summaryBase, transactions, txRev, ledgerRev]);
+  }, [summaries, summaryBase, transactions, txRev, ledgerRev]);
 
   /** Участник композера известен из сводки — список для этого не нужен. */
   function seedMembers(s: Summary) {
@@ -687,6 +704,7 @@ export function FinaApp() {
     const me = savedMember();
     const last = t.find(
       (x) =>
+        (x.account ?? "rocket") === "rocket" &&
         (x.type === "deposit" || x.type === "withdrawal") &&
         (me ? x.createdByName === me.name : true),
     );
@@ -1216,6 +1234,7 @@ export function FinaApp() {
   }
 
   async function submitOp() {
+    if (!summary) return;
     const value = amountToCents(opAmount);
     if (!value) {
       flashError("Введи сумму");
@@ -1227,6 +1246,7 @@ export function FinaApp() {
       return;
     }
     const body = {
+      account,
       type,
       amountCents: value,
       note: "",
@@ -1239,6 +1259,7 @@ export function FinaApp() {
     const id = draftId();
     const draft: Transaction = {
       id,
+      account,
       type,
       amountCents: body.amountCents,
       note: "",
@@ -1289,21 +1310,22 @@ export function FinaApp() {
    * Тот же слот, что был: occurredAt не трогаем, щель остаётся на своём месте.
    */
   const ordered = useMemo(() => {
-    if (!drag || drag.index === drag.originIndex) return transactions;
-    const current = transactions.find((t) => t.id === drag.id);
-    if (!current) return transactions;
-    const others = transactions.filter((t) => t.id !== drag.id);
+    if (!drag || drag.index === drag.originIndex) return accountTransactions;
+    const current = accountTransactions.find((t) => t.id === drag.id);
+    if (!current) return accountTransactions;
+    const others = accountTransactions.filter((t) => t.id !== drag.id);
     const occurredAt = reorderOccurredAt(
       others.map((t) => t.occurredAt),
       drag.index,
     );
     return sortTransactions(
-      transactions.map((t) => (t.id === drag.id ? { ...t, occurredAt } : t)),
+      accountTransactions.map((t) => (t.id === drag.id ? { ...t, occurredAt } : t)),
     );
-  }, [transactions, drag]);
+  }, [accountTransactions, drag]);
   const months = useMemo(() => groupByMonth(ordered), [ordered]);
   const lifted = drag ? (ordered.find((t) => t.id === drag.id) ?? null) : null;
-  const mom = useMemo(() => monthOverMonth(transactions), [transactions]);
+  const mom = useMemo(() => monthOverMonth(accountTransactions), [accountTransactions]);
+  const overallMom = useMemo(() => monthOverMonth(transactions), [transactions]);
   gestureLive.current = { onRowPointerDown, startEdit, askRemove, saveEdit, cancelEdit };
   // Поле суммы живёт в этом же компоненте. Без этой границы каждый символ
   // заново собирает все строки — на телефоне ввод начинает лагать.
@@ -1618,7 +1640,7 @@ export function FinaApp() {
               className={`surface-enter grid gap-4 ${summary ? "content-ready" : "content-busy"}`}
             >
               <div className="grid gap-1.5">
-                <p className="text-muted-foreground text-sm">Всего на счёте</p>
+                <p className="text-muted-foreground text-sm">Всего на всех счетах</p>
                 <div className="font-heading flex items-center gap-2 text-4xl leading-none font-semibold md:gap-3 md:text-5xl tabular-nums">
                   <span
                     className="digit-play"
@@ -1626,7 +1648,7 @@ export function FinaApp() {
                     onMouseOut={onTotalDigitOut}
                   >
                     <RollingMoney
-                      cents={summary?.totalCents ?? 0}
+                      cents={overallTotal}
                       hidden={hideBalances}
                       wideGroups
                     />
@@ -1644,9 +1666,38 @@ export function FinaApp() {
                     {hideBalances ? <EyeOff /> : <Eye />}
                   </Button>
                 </div>
-                {!hideBalances && <MomDelta cents={mom?.totalCents} />}
+                {!hideBalances && <MomDelta cents={overallMom?.totalCents} />}
               </div>
-              {/* 24px до крупной суммы: 16 из gap секции плюс свои 8. */}
+              <div
+                role="group"
+                aria-label="Счёт"
+                className="bg-muted flex w-fit gap-1 rounded-lg p-1"
+              >
+                {ACCOUNTS.map(({ id, label }) => (
+                  <Button
+                    key={id}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    aria-pressed={id === account}
+                    disabled={id === "yandex" && !summaries?.yandex}
+                    className="aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm"
+                    data-cuelume-press={SFX.nav}
+                    onClick={() => {
+                      if (id === account) return;
+                      endGesture();
+                      setRevealedId(null);
+                      setEditing(null);
+                      setOpAmount("");
+                      setOpSpecial(null);
+                      setOpType("deposit");
+                      setAccount(id);
+                    }}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
               <div className="mt-2 grid grid-cols-2 gap-4">
                 {(summary?.members ?? []).map((m, i) => (
                   <div
@@ -1669,7 +1720,7 @@ export function FinaApp() {
               </div>
               <div className="mt-1 grid grid-cols-3 gap-2 text-[clamp(0.75rem,3.4vw,0.875rem)]">
                 <div className="stagger-item">
-                  <p className="text-muted-foreground">Изи мани</p>
+                  <p className="text-muted-foreground">{account === "rocket" ? "Изи мани" : "Начисления"}</p>
                   <p className="font-medium tabular-nums">
                     <RollingMoney
                       cents={summary?.accrualsCents ?? 0}
@@ -1733,6 +1784,7 @@ export function FinaApp() {
             onClick={() => {
               endGesture();
               logout();
+              setAccount("rocket");
               setLoggedIn(false);
               setSummaryBase(null);
               setTransactions([]);

@@ -8,6 +8,7 @@ import {
   requireSession,
   saveDb,
   verifyPin,
+  type Account,
   type DbData,
   type Env,
   type TxType,
@@ -106,6 +107,7 @@ function serializeTx(data: DbData, tx: DbData["transactions"][number]) {
   const createdBy = data.members.find((x) => x.id === tx.created_by);
   return {
     id: tx.id,
+    account: tx.account ?? "rocket",
     type: tx.type,
     amountCents: tx.amount_cents,
     note: tx.note,
@@ -168,6 +170,7 @@ async function createTransaction(req: Request, env: Env) {
   if (!auth) return json(req, env, { error: "Unauthorized" }, 401);
 
   const body = (await req.json()) as {
+    account?: Account;
     type?: TxType;
     amountCents?: number;
     amount?: number;
@@ -176,6 +179,11 @@ async function createTransaction(req: Request, env: Env) {
     toMemberId?: string | null;
     occurredAt?: string;
   };
+
+  const account = body.account === undefined ? "rocket" : body.account;
+  if (account !== "rocket" && account !== "yandex") {
+    return json(req, env, { error: "Неизвестный счёт" }, 400);
+  }
 
   const type = body.type;
   if (!type || !TX_TYPES.includes(type)) {
@@ -206,6 +214,7 @@ async function createTransaction(req: Request, env: Env) {
 
   const created = {
     id: newId(),
+    account,
     household_id: auth.session.household_id,
     member_id: parties.memberId,
     to_member_id: parties.toMemberId,
@@ -321,7 +330,8 @@ async function deleteTransaction(req: Request, env: Env, id: string) {
 }
 
 async function route(req: Request, env: Env): Promise<Response> {
-  const { pathname } = new URL(req.url);
+  const { pathname, searchParams } = new URL(req.url);
+  const allAccounts = searchParams.get("accounts") === "all";
   const method = req.method.toUpperCase();
 
   if (method === "OPTIONS") {
@@ -352,7 +362,7 @@ async function route(req: Request, env: Env): Promise<Response> {
     const householdId = auth.session.household_id;
     return json(req, env, {
       summary: getSummary(data, householdId),
-      transactions: listTransactions(data, householdId).map((t) =>
+      transactions: listTransactions(data, householdId, allAccounts).map((t) =>
         serializeTx(data, t),
       ),
       rev: data.rev ?? 0,
@@ -363,7 +373,7 @@ async function route(req: Request, env: Env): Promise<Response> {
     if (method === "GET") {
       const { data, auth } = await authorize(req, env);
       if (!auth) return json(req, env, { error: "Unauthorized" }, 401);
-      const rows = listTransactions(data, auth.session.household_id).map((t) =>
+      const rows = listTransactions(data, auth.session.household_id, allAccounts).map((t) =>
         serializeTx(data, t),
       );
       return json(req, env, { transactions: rows, rev: data.rev ?? 0 });

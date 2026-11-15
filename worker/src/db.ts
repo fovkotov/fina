@@ -1,5 +1,7 @@
 export type TxType = "deposit" | "withdrawal" | "interest" | "cashback" | "transfer";
 
+export type Account = "rocket" | "yandex";
+
 export type Household = {
   id: string;
   name: string;
@@ -18,6 +20,7 @@ export type Member = {
 export type Transaction = {
   id: string;
   household_id: string;
+  account?: Account;
   member_id: string | null;
   /** Получатель перевода; у остальных типов пусто. */
   to_member_id?: string | null;
@@ -246,11 +249,13 @@ async function verifySignedToken(
   }
 }
 
-export function getSummary(data: DbData, householdId: string) {
+function getAccountSummary(data: DbData, householdId: string, account: Account) {
   const household = data.households.find((h) => h.id === householdId);
   if (!household) throw new Error("Household not found");
 
-  const txs = data.transactions.filter((t) => t.household_id === householdId);
+  const txs = data.transactions.filter(
+    (t) => t.household_id === householdId && (t.account ?? "rocket") === account,
+  );
   let contributions = 0;
   let interest = 0;
   let cashback = 0;
@@ -295,9 +300,16 @@ export function getSummary(data: DbData, householdId: string) {
   };
 }
 
-export function listTransactions(data: DbData, householdId: string) {
+export function getSummary(data: DbData, householdId: string) {
+  return {
+    ...getAccountSummary(data, householdId, "rocket"),
+    yandex: getAccountSummary(data, householdId, "yandex"),
+  };
+}
+
+export function listTransactions(data: DbData, householdId: string, allAccounts = false) {
   return data.transactions
-    .filter((t) => t.household_id === householdId)
+    .filter((t) => t.household_id === householdId && (allAccounts || (t.account ?? "rocket") === "rocket"))
     .sort(
       (a, b) =>
         new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime(),

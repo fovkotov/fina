@@ -1,3 +1,5 @@
+export type Account = "rocket" | "yandex";
+
 export type TransactionType =
   | "deposit"
   | "withdrawal"
@@ -22,9 +24,11 @@ export type Summary = {
   cashbackCents: number;
   accrualsCents: number;
   members: Member[];
+  yandex?: Omit<Summary, "yandex">;
 };
 
 export type Transaction = {
+  account?: Account;
   id: string;
   type: TransactionType;
   amountCents: number;
@@ -561,12 +565,13 @@ export async function fetchSummary() {
 
 export async function fetchTransactions() {
   const data = await request<{ transactions: Transaction[]; rev?: number }>(
-    "/api/transactions",
+    "/api/transactions?accounts=all",
   );
   return { transactions: data.transactions, rev: data.rev };
 }
 
 export function createTransaction(body: {
+  account?: Account;
   type: TransactionType;
   amountCents: number;
   note: string;
