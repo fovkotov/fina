@@ -1448,7 +1448,10 @@ export function FinaApp() {
                 months[i + 1] && !months[i + 1].showYear ? "after:block after:h-10" : ""
               }`}
             >
-              <div className="bg-background sticky top-2 z-10 -mx-2 shadow-[0_-8px_0_0_var(--background)]">
+              <div
+                key={withdrawalMember?.id ?? "all-operations"}
+                className="sticky top-2 z-10 -mx-2"
+              >
                 <div className="bg-muted flex items-baseline justify-between gap-3 rounded-lg px-2 py-1.5">
                   <h3 className="text-muted-foreground text-xs font-medium">{month.label}</h3>
                   <p
@@ -1727,8 +1730,6 @@ export function FinaApp() {
   }
 
   return (
-    /* Фон кабинета ровный: карточек нет, зато липкий заголовок месяца может
-       перекрывать строки непрозрачной подложкой того же цвета. */
     <div className="bg-background min-h-screen">
       <div className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-4 md:p-8">
         {error && (
@@ -1772,7 +1773,11 @@ export function FinaApp() {
                   </div>
                   {!hideBalances && <MomDelta cents={mom.totalCents} />}
                 </div>
-                <div role="group" aria-label="Счёт" className="flex items-center gap-0.5 self-start">
+                <div role="group" aria-label="Счёт" className="relative flex items-center gap-0.5 self-start">
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none absolute inset-y-0 left-0 w-[51.071px] rounded-[14.857px] border border-foreground/48 motion-safe:transition-[translate] motion-safe:duration-[180ms] motion-safe:ease-(--ease-in-out) ${account === "yandex" ? "translate-x-[calc(100%+0.125rem)]" : ""}`}
+                  />
                   {ACCOUNTS.map(({ id, label }) => (
                     <Button
                       key={id}
@@ -1783,7 +1788,7 @@ export function FinaApp() {
                       title={label}
                       aria-pressed={id === account}
                       disabled={id === "yandex" && !summaries?.yandex}
-                      className="h-[78px] w-[51.071px] rounded-[14.857px] p-0 aria-pressed:border-foreground/12"
+                      className="h-[78px] w-[51.071px] rounded-[14.857px] p-0"
                       data-cuelume-press={SFX.nav}
                       onClick={() => {
                         if (id === account) return;

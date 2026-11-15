@@ -295,7 +295,7 @@ export function TxComposer({
                   : "Внесение"
             }
             /* Без круглой маски: у знака руки и ноги доходят до краёв картинки. */
-            className="pressable flex size-[44px] shrink-0 items-center justify-start pl-px"
+            className={`pressable relative flex size-[44px] shrink-0 items-center justify-start pl-px ${signType === "deposit" ? "after:absolute after:-inset-y-4 after:-left-4 after:-right-[42px]" : ""}`}
             data-cuelume-press={SFX.nav}
             onClick={() => {
               // у начисления знака нет: первое нажатие возвращает обычную операцию
