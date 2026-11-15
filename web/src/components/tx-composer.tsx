@@ -5,7 +5,7 @@ import Image from "next/image";
 import { X } from "lucide-react";
 import { TextMorph } from "torph/react";
 import { Button } from "@/components/ui/button";
-import { AVATARS, SIGN_IMAGES } from "@/lib/assets";
+import { AVATARS, PLUS_STICKER, SIGN_IMAGES } from "@/lib/assets";
 import { SFX } from "@/lib/sounds";
 import { MONEY_GROUP_SEPARATOR, transactionTypeLabel, type Account, type Member } from "@/lib/api";
 
@@ -303,9 +303,22 @@ export function TxComposer({
               onTypeChange(type === "deposit" ? "withdrawal" : "deposit");
             }}
           >
+            {signType === "deposit" && (
+              <video
+                aria-hidden="true"
+                className="swap-in col-start-1 row-start-1 hidden size-[42px] object-contain motion-safe:block"
+                autoPlay
+                muted
+                loop
+                playsInline
+                poster={SIGN_IMAGES.deposit}
+              >
+                <source src={PLUS_STICKER} type="video/webm" media="(prefers-reduced-motion: no-preference)" />
+              </video>
+            )}
             <Image
               key={signType}
-              className="swap-in size-[42px]"
+              className={`swap-in col-start-1 row-start-1 size-[42px] object-contain ${signType === "deposit" ? "motion-safe:hidden" : ""}`}
               src={SIGN_IMAGES[signType]}
               alt=""
               width={42}

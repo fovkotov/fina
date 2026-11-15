@@ -5,6 +5,8 @@ export const AVATARS: Record<string, string> = {
   Андрей: `${BASE_PATH}/assets/avatar-andrey.png`,
 };
 
+export const PLUS_STICKER = `${BASE_PATH}/assets/sign-plus.webm`;
+
 export const SIGN_IMAGES = {
   deposit: `${BASE_PATH}/assets/sign-plus.png`,
   withdrawal: `${BASE_PATH}/assets/sign-minus.png`,
