@@ -532,8 +532,8 @@ function CreditCelebration({ onEnd }: { onEnd: () => void }) {
       <Image
         src={CREDIT_IMAGES.portrait}
         alt=""
-        width={735}
-        height={954}
+        width={512}
+        height={512}
         loading="eager"
         unoptimized
         className="credit-portrait col-start-1 row-start-1 h-auto max-h-[65dvh] w-auto max-w-[68vw] object-contain"
@@ -1311,6 +1311,10 @@ export function FinaApp() {
     // необычный тип — разовый выбор, следующая операция снова обычная
     setOpSpecial(null);
 
+    if (type === "deposit" || type === "interest" || type === "cashback") {
+      setCelebrations((active) => [...active, id]);
+    }
+
     try {
       const res = await enqueue(() => createTransaction(body));
       noteWrite(res.rev);
@@ -1319,10 +1323,8 @@ export function FinaApp() {
       setTransactions((prev) =>
         sortTransactions(prev.map((t) => (t.id === id ? res.transaction : t))),
       );
-      if (type === "deposit" || type === "interest" || type === "cashback") {
-        setCelebrations((active) => [...active, res.transaction.id]);
-      }
     } catch (err) {
+      setCelebrations((active) => active.filter((item) => item !== id));
       setTransactions((prev) => prev.filter((t) => t.id !== id));
       flashError(err instanceof Error ? err.message : "Не удалось сохранить");
     }

@@ -13,5 +13,5 @@ export const SIGN_IMAGES = {
 };
 export const CREDIT_IMAGES = {
   particle: `${BASE_PATH}/assets/credit-particle.png`,
-  portrait: `${BASE_PATH}/assets/credit-portrait.png`,
+  portrait: `${BASE_PATH}/assets/credit-portrait.webp`,
 };
