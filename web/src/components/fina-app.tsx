@@ -322,7 +322,6 @@ function monthOverMonth(list: Transaction[], now = new Date()) {
   const hasPreviousMonth = list.some((tx) => monthKeyOf(tx.occurredAt) < currentKey);
   if (!hasPreviousMonth) return null;
 
-  const members: Record<string, number> = {};
   let accrualsCents = 0;
   let totalCents = 0;
   for (const tx of list) {
@@ -330,28 +329,13 @@ function monthOverMonth(list: Transaction[], now = new Date()) {
     if (tx.type === "interest" || tx.type === "cashback") {
       accrualsCents += tx.amountCents;
       totalCents += tx.amountCents;
-      continue;
-    }
-    if (tx.type === "deposit") {
+    } else if (tx.type === "deposit") {
       totalCents += tx.amountCents;
-      if (tx.memberId) {
-        members[tx.memberId] = (members[tx.memberId] ?? 0) + tx.amountCents;
-      }
     } else if (tx.type === "withdrawal") {
       totalCents -= tx.amountCents;
-      if (tx.memberId) {
-        members[tx.memberId] = (members[tx.memberId] ?? 0) - tx.amountCents;
-      }
-    } else if (tx.type === "transfer") {
-      if (tx.memberId) {
-        members[tx.memberId] = (members[tx.memberId] ?? 0) - tx.amountCents;
-      }
-      if (tx.toMemberId) {
-        members[tx.toMemberId] = (members[tx.toMemberId] ?? 0) + tx.amountCents;
-      }
     }
   }
-  return { members, accrualsCents, totalCents };
+  return { accrualsCents, totalCents };
 }
 
 function MomDelta({ cents }: { cents: number | null | undefined }) {
@@ -1706,15 +1690,25 @@ export function FinaApp() {
                     style={{ animationDelay: `${i * 40}ms` }}
                   >
                     <p className="text-muted-foreground text-xs sm:text-sm">{m.name}</p>
-                    {/* Баланс длинный, а плитка на телефоне — половина экрана:
-                        кегль тянется за шириной вьюпорта и упирается в 20px. */}
-                    <p className="text-[clamp(0.75rem,4vw,1.25rem)] font-semibold tabular-nums">
-                      <RollingMoney
-                        cents={m.balanceCents ?? 0}
-                        hidden={hideBalances}
-                      />
-                    </p>
-                    {!hideBalances && <MomDelta cents={mom?.members[m.id]} />}
+                    <dl className="mt-1.5 grid gap-2">
+                      {[
+                        { label: "Пополнения", cents: m.depositsCents, sign: "+" as const },
+                        { label: "Списания", cents: m.withdrawalsCents, sign: "−" as const },
+                      ].map(({ label, cents, sign }) => (
+                        <div key={label}>
+                          <dt className="text-muted-foreground text-xs">{label}</dt>
+                          <dd className="text-[clamp(0.75rem,4vw,1.25rem)] font-semibold tabular-nums">
+                            {cents == null ? "—" : (
+                              <RollingMoney
+                                cents={cents}
+                                sign={cents > 0 ? sign : undefined}
+                                hidden={hideBalances}
+                              />
+                            )}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
                   </div>
                 ))}
               </div>

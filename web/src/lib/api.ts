@@ -12,6 +12,8 @@ export type Member = {
   name: string;
   accent: string;
   balanceCents?: number;
+  depositsCents?: number;
+  withdrawalsCents?: number;
 };
 
 export type Summary = {
@@ -154,15 +156,21 @@ export function recomputeSummary(base: Summary, list: Transaction[]): Summary {
 
   const members = base.members.map((m) => {
     let balance = 0;
+    let depositsCents = 0;
+    let withdrawalsCents = 0;
     for (const t of list) {
-      if (t.type === "deposit" && t.memberId === m.id) balance += t.amountCents;
-      else if (t.type === "withdrawal" && t.memberId === m.id) balance -= t.amountCents;
-      else if (t.type === "transfer") {
+      if (t.type === "deposit" && t.memberId === m.id) {
+        depositsCents += t.amountCents;
+        balance += t.amountCents;
+      } else if (t.type === "withdrawal" && t.memberId === m.id) {
+        withdrawalsCents += t.amountCents;
+        balance -= t.amountCents;
+      } else if (t.type === "transfer") {
         if (t.memberId === m.id) balance -= t.amountCents;
         if (t.toMemberId === m.id) balance += t.amountCents;
       }
     }
-    return { ...m, balanceCents: balance };
+    return { ...m, balanceCents: balance, depositsCents, withdrawalsCents };
   });
 
   const accrualsCents = interest + cashback;
@@ -188,6 +196,8 @@ export function applyPending(base: Summary, pending: Transaction[]): Summary {
   let interest = base.interestCents;
   let cashback = base.cashbackCents;
   const balances = new Map(base.members.map((m) => [m.id, m.balanceCents ?? 0]));
+  const deposits = new Map<string, number>();
+  const withdrawals = new Map<string, number>();
 
   for (const t of pending) {
     if (t.type === "deposit") contributions += t.amountCents;
@@ -196,8 +206,10 @@ export function applyPending(base: Summary, pending: Transaction[]): Summary {
     else if (t.type === "cashback") cashback += t.amountCents;
 
     if (t.type === "deposit" && t.memberId) {
+      deposits.set(t.memberId, (deposits.get(t.memberId) ?? 0) + t.amountCents);
       balances.set(t.memberId, (balances.get(t.memberId) ?? 0) + t.amountCents);
     } else if (t.type === "withdrawal" && t.memberId) {
+      withdrawals.set(t.memberId, (withdrawals.get(t.memberId) ?? 0) + t.amountCents);
       balances.set(t.memberId, (balances.get(t.memberId) ?? 0) - t.amountCents);
     } else if (t.type === "transfer") {
       if (t.memberId) {
@@ -220,6 +232,8 @@ export function applyPending(base: Summary, pending: Transaction[]): Summary {
     members: base.members.map((m) => ({
       ...m,
       balanceCents: balances.get(m.id) ?? 0,
+      depositsCents: m.depositsCents == null ? undefined : m.depositsCents + (deposits.get(m.id) ?? 0),
+      withdrawalsCents: m.withdrawalsCents == null ? undefined : m.withdrawalsCents + (withdrawals.get(m.id) ?? 0),
     })),
   };
 }

@@ -270,17 +270,28 @@ function getAccountSummary(data: DbData, householdId: string, account: Account) 
     .filter((m) => m.household_id === householdId)
     .map((m) => {
       let balance = 0;
+      let depositsCents = 0;
+      let withdrawalsCents = 0;
       for (const t of txs) {
         if (t.type === "deposit" && t.member_id === m.id) {
           balance += t.amount_cents;
+          depositsCents += t.amount_cents;
         } else if (t.type === "withdrawal" && t.member_id === m.id) {
           balance -= t.amount_cents;
+          withdrawalsCents += t.amount_cents;
         } else if (t.type === "transfer") {
           if (t.member_id === m.id) balance -= t.amount_cents;
           if (t.to_member_id === m.id) balance += t.amount_cents;
         }
       }
-      return { id: m.id, name: m.name, accent: m.accent, balanceCents: balance };
+      return {
+        id: m.id,
+        name: m.name,
+        accent: m.accent,
+        balanceCents: balance,
+        depositsCents,
+        withdrawalsCents,
+      };
     })
     .sort((a, b) => a.name.localeCompare(b.name, "ru"));
 
