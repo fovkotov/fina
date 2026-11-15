@@ -42,6 +42,7 @@ import {
   transactionTypeLabel,
   updateTransaction,
   type Account,
+  type Member,
   type Summary,
   type Transaction,
   type TransactionType,
@@ -564,6 +565,7 @@ export function FinaApp() {
   /** С сервера берём только неизменяемую часть: кто участники и как зовут кабинет. */
   const [summaryBase, setSummaryBase] = useState<Summary | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [withdrawalMember, setWithdrawalMember] = useState<Member | null>(null);
   const [account, setAccount] = useState<Account>("rocket");
   const accountTransactions = useMemo(
     () => transactions.filter((tx) => (tx.account ?? "rocket") === account),
@@ -974,7 +976,7 @@ export function FinaApp() {
         if (dist > HOLD_SLOP_PX) endGesture();
         return;
       }
-      if (dist > HOLD_SLOP_PX) startDrag(ev);
+      if (dist > HOLD_SLOP_PX && !withdrawalMember) startDrag(ev);
     };
     const onUp = (ev: PointerEvent) => {
       if (ev.pointerId !== pointerId) return;
@@ -1358,7 +1360,16 @@ export function FinaApp() {
       accountTransactions.map((t) => (t.id === drag.id ? { ...t, occurredAt } : t)),
     );
   }, [accountTransactions, drag]);
-  const months = useMemo(() => groupByMonth(ordered), [ordered]);
+  const currentMonth = calendarMonthKey();
+  const months = useMemo(() => groupByMonth(
+    withdrawalMember
+      ? ordered.filter((tx) =>
+          tx.type === "withdrawal" &&
+          tx.memberId === withdrawalMember.id &&
+          monthKeyOf(tx.occurredAt) === currentMonth,
+        )
+      : ordered,
+  ), [ordered, withdrawalMember, currentMonth]);
   const ledgerRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -1385,7 +1396,6 @@ export function FinaApp() {
   }, [loggedIn, months]);
   const lifted = drag ? (ordered.find((t) => t.id === drag.id) ?? null) : null;
   const mom = useMemo(() => monthOverMonth(accountTransactions), [accountTransactions]);
-  const currentMonth = calendarMonthKey();
   const monthlyMemberTotals = useMemo(() => {
     const totals = new Map<string, { deposit: number; withdrawal: number }>();
     for (const tx of accountTransactions) {
@@ -1402,6 +1412,13 @@ export function FinaApp() {
     return totals;
   }, [accountTransactions, currentMonth]);
   const monthlyTotalsReady = txRev >= 0 && txRev >= ledgerRev;
+  function toggleWithdrawalFilter(member: Member) {
+    endGesture();
+    setRevealedId(null);
+    setEditing(null);
+    setWithdrawalMember((active) => active?.id === member.id ? null : member);
+  }
+
   gestureLive.current = { onRowPointerDown, startEdit, askRemove, saveEdit, cancelEdit };
   // Поле суммы живёт в этом же компоненте. Без этой границы каждый символ
   // заново собирает все строки — на телефоне ввод начинает лагать.
@@ -1409,6 +1426,21 @@ export function FinaApp() {
     const live = gestureLive;
     return (
       <div ref={ledgerRef} className="ledger mt-8 lg:mt-0" data-appear={mounted ? "true" : "false"}>
+        {withdrawalMember && (
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-muted-foreground text-sm">
+              Списания за месяц · {withdrawalMember.name}
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleWithdrawalFilter(withdrawalMember)}
+            >
+              Сбросить
+            </Button>
+          </div>
+        )}
         {months.map((month, i) => (
           /* Воздух после месяца — in-flow after:h-10, не pb: padding
              не держит sticky. Плашка живёт, пока не приедет следующая. */
@@ -1605,13 +1637,14 @@ export function FinaApp() {
           )
         ) : (
           !months.length && (
-            <p className="text-muted-foreground py-6 text-center text-sm">Операций пока нет</p>
+            <p className="text-muted-foreground py-6 text-center text-sm">{withdrawalMember ? "Списаний за этот месяц нет" : "Операций пока нет"}</p>
           )
         )}
       </div>
     );
   }, [
     months,
+    withdrawalMember,
     drag,
     editing,
     revealedId,
@@ -1762,6 +1795,7 @@ export function FinaApp() {
                         setOpAmount("");
                         setOpSpecial(null);
                         setOpType("deposit");
+                        setWithdrawalMember(null);
                         setAccount(id);
                       }}
                     >
@@ -1789,12 +1823,19 @@ export function FinaApp() {
                         <div key={label}>
                           <dt className="sr-only">{label}</dt>
                           <dd className={sign === "+" ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground"}>
-                            {cents == null ? "—" : (
-                              <RollingMoney
-                                cents={cents}
-                                sign={sign}
-                                hidden={hideBalances}
-                              />
+                            {cents == null ? "—" : sign === "−" ? (
+                              <button
+                                type="button"
+                                aria-label={`Списания за текущий месяц · ${m.name}`}
+                                aria-pressed={withdrawalMember?.id === m.id}
+                                className="hover:text-foreground aria-pressed:text-foreground cursor-pointer rounded-sm focus-visible:outline-2"
+                                data-cuelume-press={SFX.nav}
+                                onClick={() => toggleWithdrawalFilter(m)}
+                              >
+                                <RollingMoney cents={cents} sign={sign} hidden={hideBalances} />
+                              </button>
+                            ) : (
+                              <RollingMoney cents={cents} sign={sign} hidden={hideBalances} />
                             )}
                           </dd>
                         </div>
@@ -1871,6 +1912,7 @@ export function FinaApp() {
               endGesture();
               logout();
               setCelebrations([]);
+              setWithdrawalMember(null);
               setAccount("rocket");
               setLoggedIn(false);
               setSummaryBase(null);
