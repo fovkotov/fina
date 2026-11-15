@@ -19,7 +19,6 @@ const types = {
   ".png": "image/png",
   ".svg": "image/svg+xml",
   ".txt": "text/plain; charset=utf-8",
-  ".webm": "video/webm",
   ".webp": "image/webp",
   ".woff2": "font/woff2",
 };

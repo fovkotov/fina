@@ -303,28 +303,22 @@ export function TxComposer({
               onTypeChange(type === "deposit" ? "withdrawal" : "deposit");
             }}
           >
-            {signType === "deposit" && (
-              <video
-                aria-hidden="true"
-                className="swap-in hidden size-[84px] shrink-0 object-contain motion-safe:block"
-                autoPlay
-                muted
-                loop
-                playsInline
-                poster={SIGN_IMAGES.deposit}
-              >
-                <source src={PLUS_STICKER} type="video/webm" media="(prefers-reduced-motion: no-preference)" />
-              </video>
-            )}
-            <Image
+            <picture
               key={signType}
-              className={`swap-in shrink-0 object-contain ${signType === "deposit" ? "size-[84px] motion-safe:hidden" : "size-[42px]"}`}
-              src={SIGN_IMAGES[signType]}
-              alt=""
-              width={42}
-              height={42}
-              priority
-            />
+              className={`swap-in shrink-0 ${signType === "deposit" ? "size-[84px]" : "size-[42px]"}`}
+            >
+              {signType === "deposit" && (
+                <source srcSet={PLUS_STICKER} type="image/webp" media="(prefers-reduced-motion: no-preference)" />
+              )}
+              <Image
+                className="size-full object-contain"
+                src={SIGN_IMAGES[signType]}
+                alt=""
+                width={84}
+                height={84}
+                unoptimized
+              />
+            </picture>
           </button>
         )}
 
