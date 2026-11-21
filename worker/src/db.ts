@@ -32,6 +32,8 @@ export type Transaction = {
   occurred_at: string;
   created_by: string | null;
   created_at: string;
+  /** Списание сохраняет влияние на баланс, но не считается тратой. */
+  exclude_from_spending?: boolean;
 };
 
 export type Session = {

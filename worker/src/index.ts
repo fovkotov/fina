@@ -121,6 +121,7 @@ function serializeTx(data: DbData, tx: DbData["transactions"][number]) {
     toMemberId: tx.to_member_id ?? null,
     toMemberName: toMember?.name ?? null,
     createdByName: createdBy?.name ?? null,
+    excludeFromSpending: tx.exclude_from_spending ?? false,
   };
 }
 
@@ -180,6 +181,7 @@ async function createTransaction(req: Request, env: Env) {
     memberId?: string | null;
     toMemberId?: string | null;
     occurredAt?: string;
+    excludeFromSpending?: boolean;
   };
 
   const account = body.account === undefined ? "rocket" : body.account;
@@ -282,6 +284,9 @@ async function updateTransaction(req: Request, env: Env, id: string) {
   }
 
   if (body.note !== undefined) tx.note = (body.note ?? "").trim();
+  if (body.excludeFromSpending !== undefined) {
+    tx.exclude_from_spending = Boolean(body.excludeFromSpending);
+  }
 
   if (body.occurredAt !== undefined) {
     const date = new Date(body.occurredAt);

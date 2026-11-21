@@ -332,7 +332,7 @@ function monthOverMonth(list: Transaction[], now = new Date()) {
       totalCents += tx.amountCents;
     } else if (tx.type === "deposit") {
       totalCents += tx.amountCents;
-    } else if (tx.type === "withdrawal") {
+    } else if (tx.type === "withdrawal" && !tx.excludeFromSpending) {
       totalCents -= tx.amountCents;
     }
   }
@@ -370,7 +370,7 @@ function groupByMonth(list: Transaction[]) {
       groups.set(key, group);
     }
     group.items.push(tx);
-    if (tx.type === "withdrawal") group.totalCents -= tx.amountCents;
+    if (tx.type === "withdrawal" && !tx.excludeFromSpending) group.totalCents -= tx.amountCents;
     else if (tx.type !== "transfer") group.totalCents += tx.amountCents;
   }
   const sorted = [...groups.values()].sort((a, b) => b.key.localeCompare(a.key));
@@ -391,6 +391,7 @@ type EditDraft = {
   note: string;
   date: string;
   occurredAt: string;
+  excludeFromSpending: boolean;
 };
 
 function dateInputValue(iso: string) {
@@ -1133,6 +1134,7 @@ export function FinaApp() {
       note: tx.note ?? "",
       date: dateInputValue(tx.occurredAt),
       occurredAt: tx.occurredAt,
+      excludeFromSpending: tx.excludeFromSpending ?? false,
     });
   }
 
@@ -1163,6 +1165,7 @@ export function FinaApp() {
       memberId: needsMember(editing.type) ? editing.memberId || null : null,
       toMemberId: editing.type === "transfer" ? editing.toMemberId || null : null,
       occurredAt: withDate(editing.occurredAt, editing.date),
+      excludeFromSpending: editing.excludeFromSpending,
     };
     const members = summary?.members ?? [];
     const from = memberFacts(members, patch.memberId);
@@ -1585,6 +1588,19 @@ export function FinaApp() {
                         onChange={(e) => setEditing({ ...editing, note: e.target.value })}
                       />
                     </div>
+                    {editing.type === "withdrawal" && (
+                      <label className="border-border bg-background flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm">
+                        <input
+                          type="checkbox"
+                          className="size-4 accent-primary"
+                          checked={editing.excludeFromSpending}
+                          onChange={(e) =>
+                            setEditing({ ...editing, excludeFromSpending: e.target.checked })
+                          }
+                        />
+                        Не учитывать в тратах (перевод себе)
+                      </label>
+                    )}
                     <div className="flex justify-end gap-2">
                       <Button
                         type="button"

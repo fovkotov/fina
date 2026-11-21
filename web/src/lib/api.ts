@@ -45,6 +45,8 @@ export type Transaction = {
   createdByName?: string | null;
   /** Операция уже на экране, но ещё едет на сервер. Только на клиенте. */
   pending?: boolean;
+  /** Не учитывать в аналитике трат, не меняя смысл операции для баланса. */
+  excludeFromSpending?: boolean;
 };
 
 /** Порядок как в API: свежие сверху. Локальные вставки должны его повторять. */
@@ -607,6 +609,7 @@ export function updateTransaction(
     memberId?: string | null;
     toMemberId?: string | null;
     occurredAt?: string;
+    excludeFromSpending?: boolean;
   },
 ) {
   return request<{ transaction: Transaction; summary: Summary; rev?: number }>(
