@@ -370,7 +370,9 @@ function groupByMonth(list: Transaction[]) {
       groups.set(key, group);
     }
     group.items.push(tx);
-    if (tx.type === "withdrawal" && !tx.excludeFromSpending) group.totalCents -= tx.amountCents;
+    if (tx.type === "withdrawal") {
+      if (!tx.excludeFromSpending) group.totalCents -= tx.amountCents;
+    }
     else if (tx.type !== "transfer") group.totalCents += tx.amountCents;
   }
   const sorted = [...groups.values()].sort((a, b) => b.key.localeCompare(a.key));
