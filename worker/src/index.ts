@@ -263,6 +263,7 @@ async function updateTransaction(req: Request, env: Env, id: string) {
     memberId?: string | null;
     toMemberId?: string | null;
     occurredAt?: string;
+    excludeFromSpending?: boolean;
   };
 
   if (body.type !== undefined) {
