@@ -567,7 +567,10 @@ export function FinaApp() {
   /** С сервера берём только неизменяемую часть: кто участники и как зовут кабинет. */
   const [summaryBase, setSummaryBase] = useState<Summary | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [withdrawalMember, setWithdrawalMember] = useState<Member | null>(null);
+  const [historyFilter, setHistoryFilter] = useState<{
+    member: Member;
+    type: "deposit" | "withdrawal";
+  } | null>(null);
   const [account, setAccount] = useState<Account>("rocket");
   const accountTransactions = useMemo(
     () => transactions.filter((tx) => (tx.account ?? "rocket") === account),
@@ -978,7 +981,7 @@ export function FinaApp() {
         if (dist > HOLD_SLOP_PX) endGesture();
         return;
       }
-      if (dist > HOLD_SLOP_PX && !withdrawalMember) startDrag(ev);
+      if (dist > HOLD_SLOP_PX && !historyFilter) startDrag(ev);
     };
     const onUp = (ev: PointerEvent) => {
       if (ev.pointerId !== pointerId) return;
@@ -1367,15 +1370,14 @@ export function FinaApp() {
   }, [accountTransactions, drag]);
   const currentMonth = calendarMonthKey();
   const months = useMemo(() => groupByMonth(
-    withdrawalMember
+    historyFilter
       ? ordered.filter((tx) =>
-          tx.type === "withdrawal" &&
-          !tx.excludeFromSpending &&
-          tx.memberId === withdrawalMember.id &&
-          monthKeyOf(tx.occurredAt) === currentMonth,
+          tx.type === historyFilter.type &&
+          tx.memberId === historyFilter.member.id &&
+          (tx.type !== "withdrawal" || !tx.excludeFromSpending),
         )
       : ordered,
-  ), [ordered, withdrawalMember, currentMonth]);
+  ), [ordered, historyFilter]);
   const ledgerRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -1419,11 +1421,13 @@ export function FinaApp() {
     return totals;
   }, [accountTransactions, currentMonth]);
   const monthlyTotalsReady = txRev >= 0 && txRev >= ledgerRev;
-  function toggleWithdrawalFilter(member: Member) {
+  function toggleHistoryFilter(member: Member, type: "deposit" | "withdrawal") {
     endGesture();
     setRevealedId(null);
     setEditing(null);
-    setWithdrawalMember((active) => active?.id === member.id ? null : member);
+    setHistoryFilter((active) =>
+      active?.member.id === member.id && active.type === type ? null : { member, type },
+    );
   }
 
   gestureLive.current = { onRowPointerDown, startEdit, askRemove, saveEdit, cancelEdit };
@@ -1433,16 +1437,16 @@ export function FinaApp() {
     const live = gestureLive;
     return (
       <div ref={ledgerRef} className="ledger mt-8 lg:mt-0" data-appear={mounted ? "true" : "false"}>
-        {withdrawalMember && (
+        {historyFilter && (
           <div className="mb-2 flex items-center justify-between gap-2">
             <p className="text-muted-foreground text-sm">
-              Списания за месяц · {withdrawalMember.name}
+              {historyFilter.type === "deposit" ? "Все пополнения" : "Все траты"} · {historyFilter.member.name}
             </p>
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => toggleWithdrawalFilter(withdrawalMember)}
+              onClick={() => toggleHistoryFilter(historyFilter.member, historyFilter.type)}
             >
               Сбросить
             </Button>
@@ -1458,7 +1462,7 @@ export function FinaApp() {
               }`}
             >
               <div
-                key={withdrawalMember?.id ?? "all-operations"}
+                key={historyFilter ? `${historyFilter.type}-${historyFilter.member.id}` : "all-operations"}
                 className="sticky top-2 z-10 -mx-2"
               >
                 <div className="bg-muted flex items-baseline justify-between gap-3 rounded-lg px-2 py-1.5">
@@ -1660,14 +1664,14 @@ export function FinaApp() {
           )
         ) : (
           !months.length && (
-            <p className="text-muted-foreground py-6 text-center text-sm">{withdrawalMember ? "Списаний за этот месяц нет" : "Операций пока нет"}</p>
+            <p className="text-muted-foreground py-6 text-center text-sm">{historyFilter?.type === "deposit" ? "Пополнений пока нет" : historyFilter ? "Трат пока нет" : "Операций пока нет"}</p>
           )
         )}
       </div>
     );
   }, [
     months,
-    withdrawalMember,
+    historyFilter,
     drag,
     editing,
     revealedId,
@@ -1820,7 +1824,7 @@ export function FinaApp() {
                         setOpAmount("");
                         setOpSpecial(null);
                         setOpType("deposit");
-                        setWithdrawalMember(null);
+                        setHistoryFilter(null);
                         setAccount(id);
                       }}
                     >
@@ -1867,27 +1871,28 @@ export function FinaApp() {
                       {[
                         { label: "Пополнения за текущий месяц", cents: monthlyTotalsReady ? (monthlyMemberTotals.get(m.id)?.deposit ?? 0) : undefined, sign: "+" as const },
                         { label: "Списания за текущий месяц", cents: monthlyTotalsReady ? (monthlyMemberTotals.get(m.id)?.withdrawal ?? 0) : undefined, sign: "−" as const },
-                      ].map(({ label, cents, sign }) => (
+                      ].map(({ label, cents, sign }) => {
+                        const type = sign === "+" ? "deposit" : "withdrawal";
+                        return (
                         <div key={label}>
                           <dt className="sr-only">{label}</dt>
                           <dd className={sign === "+" ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground"}>
-                            {cents == null ? "—" : sign === "−" ? (
+                            {cents == null ? "—" : (
                               <button
                                 type="button"
-                                aria-label={`Списания за текущий месяц · ${m.name}`}
-                                aria-pressed={withdrawalMember?.id === m.id}
+                                aria-label={`${label} · ${m.name}. Показать всю историю`}
+                                aria-pressed={historyFilter?.member.id === m.id && historyFilter.type === type}
                                 className="hover:text-foreground aria-pressed:text-foreground cursor-pointer rounded-sm focus-visible:outline-2"
                                 data-cuelume-press={SFX.nav}
-                                onClick={() => toggleWithdrawalFilter(m)}
+                                onClick={() => toggleHistoryFilter(m, type)}
                               >
                                 <RollingMoney cents={cents} sign={sign} hidden={hideBalances} />
                               </button>
-                            ) : (
-                              <RollingMoney cents={cents} sign={sign} hidden={hideBalances} />
                             )}
                           </dd>
                         </div>
-                      ))}
+                        );
+                      })}
                     </dl>
                   </div>
                 ))}
@@ -1961,7 +1966,7 @@ export function FinaApp() {
               endGesture();
               logout();
               setCelebrations([]);
-              setWithdrawalMember(null);
+              setHistoryFilter(null);
               setAccount("rocket");
               setLoggedIn(false);
               setSummaryBase(null);
