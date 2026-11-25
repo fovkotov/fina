@@ -284,7 +284,7 @@ function getAccountSummary(data: DbData, householdId: string, account: Account) 
           depositsCents += t.amount_cents;
         } else if (t.type === "withdrawal" && t.member_id === m.id) {
           balance -= t.amount_cents;
-          withdrawalsCents += t.amount_cents;
+          if (!t.exclude_from_spending) withdrawalsCents += t.amount_cents;
         } else if (t.type === "transfer") {
           if (t.member_id === m.id) balance -= t.amount_cents;
           if (t.to_member_id === m.id) balance += t.amount_cents;

@@ -165,7 +165,7 @@ export function recomputeSummary(base: Summary, list: Transaction[]): Summary {
         depositsCents += t.amountCents;
         balance += t.amountCents;
       } else if (t.type === "withdrawal" && t.memberId === m.id) {
-        withdrawalsCents += t.amountCents;
+        if (!t.excludeFromSpending) withdrawalsCents += t.amountCents;
         balance -= t.amountCents;
       } else if (t.type === "transfer") {
         if (t.memberId === m.id) balance -= t.amountCents;
@@ -211,7 +211,9 @@ export function applyPending(base: Summary, pending: Transaction[]): Summary {
       deposits.set(t.memberId, (deposits.get(t.memberId) ?? 0) + t.amountCents);
       balances.set(t.memberId, (balances.get(t.memberId) ?? 0) + t.amountCents);
     } else if (t.type === "withdrawal" && t.memberId) {
-      withdrawals.set(t.memberId, (withdrawals.get(t.memberId) ?? 0) + t.amountCents);
+      if (!t.excludeFromSpending) {
+        withdrawals.set(t.memberId, (withdrawals.get(t.memberId) ?? 0) + t.amountCents);
+      }
       balances.set(t.memberId, (balances.get(t.memberId) ?? 0) - t.amountCents);
     } else if (t.type === "transfer") {
       if (t.memberId) {
