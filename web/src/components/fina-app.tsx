@@ -1370,6 +1370,7 @@ export function FinaApp() {
     withdrawalMember
       ? ordered.filter((tx) =>
           tx.type === "withdrawal" &&
+          !tx.excludeFromSpending &&
           tx.memberId === withdrawalMember.id &&
           monthKeyOf(tx.occurredAt) === currentMonth,
         )
@@ -1407,6 +1408,7 @@ export function FinaApp() {
       if (
         !tx.memberId ||
         (tx.type !== "deposit" && tx.type !== "withdrawal") ||
+        (tx.type === "withdrawal" && tx.excludeFromSpending) ||
         monthKeyOf(tx.occurredAt) !== currentMonth
       ) continue;
 
